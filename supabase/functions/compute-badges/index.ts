@@ -201,4 +201,86 @@ async function computeBadgesForTeam(teamId: string, seasonId: string) {
   for (const [id, s] of Object.entries(playerStats)) yellowMap[id] = s.yellow_cards
   const yellowKings = getTopPlayers(yellowMap)
   await revokeBadge(seasonId, teamId, 'yellow_card_king', yellowKings)
-  for (const p of
+  for (const p of yellowKings) await awardBadge(p, seasonId, teamId, 'yellow_card_king')
+
+  // Red card king
+  const redMap: Record<string, number> = {}
+  for (const [id, s] of Object.entries(playerStats)) redMap[id] = s.red_cards
+  const redKings = getTopPlayers(redMap)
+  await revokeBadge(seasonId, teamId, 'red_card_king', redKings)
+  for (const p of redKings) await awardBadge(p, seasonId, teamId, 'red_card_king')
+
+  // Iron man — tous les joueurs avec 0 carton et minutes > 0
+  const ironMen = Object.entries(playerStats)
+    .filter(([_, s]) => s.total_cards === 0 && s.minutes_played > 0)
+    .map(([id]) => id)
+  await revokeBadge(seasonId, teamId, 'iron_man', ironMen)
+  for (const p of ironMen) await awardBadge(p, seasonId, teamId, 'iron_man')
+
+  // Attendance king
+  const attendanceKings = getTopPlayers(attendanceStats, 50)
+  await revokeBadge(seasonId, teamId, 'attendance_king', attendanceKings)
+  for (const p of attendanceKings) await awardBadge(p, seasonId, teamId, 'attendance_king')
+
+  // Fine leader
+  const fineLeaders = getTopPlayers(fineStats)
+  await revokeBadge(seasonId, teamId, 'fine_leader', fineLeaders)
+  for (const p of fineLeaders) await awardBadge(p, seasonId, teamId, 'fine_leader')
+
+  return {
+    teamId,
+    topScorers: topScorers.length,
+    topAssists: topAssists.length,
+    ironMen: ironMen.length,
+    yellowKings: yellowKings.length,
+    redKings: redKings.length,
+    attendanceKings: attendanceKings.length,
+    fineLeaders: fineLeaders.length
+  }
+}
+
+// Fonction principale
+Deno.serve(async (req) => {
+  try {
+    const body = await req.json().catch(() => ({}))
+    const targetTeamId = body?.team_id ?? null
+
+    const { data: season } = await supabase
+      .from('seasons')
+      .select('id')
+      .eq('is_current', true)
+      .eq('sport_slug', 'football')
+      .single()
+
+    if (!season) throw new Error('No current season found')
+
+    const query = supabase
+      .from('teams')
+      .select('id')
+      .eq('season_id', season.id)
+
+    if (targetTeamId) query.eq('id', targetTeamId)
+
+    const { data: teams } = await query
+
+    if (!teams?.length) throw new Error('No teams found')
+
+    const results = []
+    for (const team of teams) {
+      const result = await computeBadgesForTeam(team.id, season.id)
+      results.push(result)
+    }
+
+    return new Response(
+      JSON.stringify({ ok: true, teamsProcessed: results.length, results }),
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+
+  } catch (error) {
+    console.error('compute-badges error:', error)
+    return new Response(
+      JSON.stringify({ ok: false, error: error.message }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+})

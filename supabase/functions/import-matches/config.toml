@@ -1,0 +1,3 @@
+[functions.import-matches]
+verify_jwt = false
+schedule = "*/15 * * * *"

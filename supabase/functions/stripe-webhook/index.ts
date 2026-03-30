@@ -12,6 +12,23 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
 
 const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!
 
+// Envoie un email via la fonction send-email
+async function sendEmail(
+  to: string,
+  template: string,
+  lang: string,
+  params: Record<string, string>
+) {
+  await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ to, template, lang, params })
+  })
+}
+
 // Détermine le nombre de licences selon le price_id Stripe
 function getLicenseCount(priceId: string): number {
   const licenseMap: Record<string, number> = {
@@ -88,6 +105,28 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     subscription.current_period_start,
     subscription.current_period_end
   )
+
+  // Email confirmation abonnement
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('full_name, users(email)')
+    .eq('id', session.client_reference_id)
+    .single()
+
+  if (profile) {
+    const renewalDate = new Date(subscription.current_period_end * 1000)
+      .toLocaleDateString('fr-BE')
+    await sendEmail(
+      (profile.users as any).email,
+      'subscription_confirmed',
+      'fr',
+      {
+        name: profile.full_name ?? 'Coach',
+        plan: getPlan(priceId),
+        renewalDate
+      }
+    )
+  }
 }
 
 async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
@@ -148,6 +187,30 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
       updated_at: new Date().toISOString()
     })
     .eq('stripe_subscription_id', invoice.subscription as string)
+
+  // Email paiement échoué
+  const { data: sub } = await supabase
+    .from('subscriptions')
+    .select('organization_id')
+    .eq('stripe_subscription_id', invoice.subscription as string)
+    .single()
+
+  if (sub) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('full_name, users(email)')
+      .eq('role', 'club_admin')
+      .single()
+
+    if (profile) {
+      await sendEmail(
+        (profile.users as any).email,
+        'payment_failed',
+        'fr',
+        { name: profile.full_name ?? 'Coach' }
+      )
+    }
+  }
 }
 
 async function handlePaymentSucceeded(invoice: Stripe.Invoice) {

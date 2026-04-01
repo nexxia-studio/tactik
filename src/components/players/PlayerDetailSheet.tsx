@@ -1,12 +1,12 @@
-import { X, Mail, Phone, Calendar, Pencil, User } from "lucide-react";
+import { Calendar, Pencil, User, Star } from "lucide-react";
 import type { Player } from "@/hooks/usePlayers";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 const positionConfig: Record<string, { bg: string; text: string }> = {
-  Gardien: { bg: "bg-[rgba(79,142,255,0.15)]", text: "text-[var(--color-info)]" },
-  Défenseur: { bg: "bg-[rgba(255,59,48,0.15)]", text: "text-[var(--color-danger)]" },
-  Milieu: { bg: "bg-[rgba(255,214,10,0.15)]", text: "text-[var(--color-warning)]" },
-  Attaquant: { bg: "bg-[rgba(22,255,110,0.15)]", text: "text-[var(--color-success)]" },
+  Gardien:   { bg: "bg-[rgba(79,142,255,0.15)]",  text: "text-[var(--color-info)]"    },
+  Défenseur: { bg: "bg-[rgba(255,59,48,0.15)]",   text: "text-[var(--color-danger)]"  },
+  Milieu:    { bg: "bg-[rgba(255,214,10,0.15)]",  text: "text-[var(--color-warning)]" },
+  Attaquant: { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]" },
 };
 
 interface PlayerDetailSheetProps {
@@ -18,7 +18,7 @@ interface PlayerDetailSheetProps {
 
 export function PlayerDetailSheet({ player, open, onOpenChange, onEdit }: PlayerDetailSheetProps) {
   if (!player) return null;
-  const pos = positionConfig[player.position] || { bg: "bg-bg-surface-2", text: "text-t-secondary" };
+  const pos = positionConfig[player.position_preferred ?? ""] || { bg: "bg-bg-surface-2", text: "text-t-secondary" };
   const joinDate = new Date(player.created_at).toLocaleDateString("fr-BE", {
     day: "numeric", month: "long", year: "numeric",
   });
@@ -31,23 +31,28 @@ export function PlayerDetailSheet({ player, open, onOpenChange, onEdit }: Player
           <div className="flex flex-col items-center text-center">
             <div className="h-24 w-24 rounded-full bg-bg-surface-2 overflow-hidden flex items-center justify-center mb-4 border-2 border-b-subtle">
               {player.avatar_url ? (
-                <img src={player.avatar_url} alt={player.first_name} className="h-full w-full object-cover" />
-              ) : player.jersey_number ? (
-                <span className="font-display text-[32px] text-t-primary">{player.jersey_number}</span>
+                <img src={player.avatar_url} alt={player.full_name} className="h-full w-full object-cover" />
+              ) : player.shirt_number ? (
+                <span className="font-display text-[32px] text-t-primary">{player.shirt_number}</span>
               ) : (
                 <User className="h-10 w-10 text-t-muted" />
               )}
             </div>
             <h2 className="font-display text-t-primary leading-none" style={{ fontSize: "var(--text-h2)" }}>
-              {player.first_name} {player.last_name.toUpperCase()}
+              {player.full_name.toUpperCase()}
             </h2>
+            {player.nickname && (
+              <p className="font-ui text-[13px] text-t-muted mt-1">« {player.nickname} »</p>
+            )}
             <div className="flex items-center gap-2 mt-3">
-              <span className={`inline-flex px-3 py-1 rounded-full text-[11px] font-ui font-semibold uppercase tracking-wider ${pos.bg} ${pos.text}`}>
-                {player.position}
-              </span>
-              {player.jersey_number && (
+              {player.position_preferred && (
+                <span className={`inline-flex px-3 py-1 rounded-full text-[11px] font-ui font-semibold uppercase tracking-wider ${pos.bg} ${pos.text}`}>
+                  {player.position_preferred}
+                </span>
+              )}
+              {player.shirt_number && (
                 <span className="inline-flex px-3 py-1 rounded-full text-[11px] font-display bg-bg-surface-2 text-t-secondary">
-                  #{player.jersey_number}
+                  #{player.shirt_number}
                 </span>
               )}
             </div>
@@ -56,20 +61,22 @@ export function PlayerDetailSheet({ player, open, onOpenChange, onEdit }: Player
 
         {/* Info sections */}
         <div className="px-6 pb-8 space-y-4">
-          {/* Contact */}
+          {/* Infos */}
           <div className="bg-bg-surface-2 rounded-xl p-4 space-y-3">
-            <p className="text-label">CONTACT</p>
+            <p className="text-label">INFOS</p>
             <div className="space-y-2">
+              {player.birth_date && (
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-4 w-4 text-t-muted shrink-0" />
+                  <span className="font-ui text-[13px] text-t-primary">
+                    {new Date(player.birth_date).toLocaleDateString("fr-BE", { day: "numeric", month: "long", year: "numeric" })}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-3">
-                <Mail className="h-4 w-4 text-t-muted shrink-0" />
-                <span className="font-ui text-[13px] text-t-primary truncate">
-                  {player.email || "Non renseigné"}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Phone className="h-4 w-4 text-t-muted shrink-0" />
-                <span className="font-ui text-[13px] text-t-primary">
-                  {player.phone || "Non renseigné"}
+                <Star className="h-4 w-4 text-t-muted shrink-0" />
+                <span className="font-ui text-[13px] text-t-secondary">
+                  Niveau {player.level} — {player.xp_points} XP
                 </span>
               </div>
               <div className="flex items-center gap-3">

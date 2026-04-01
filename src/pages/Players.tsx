@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Users, LayoutGrid, List } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { usePlayers, useTeams, useAddPlayer, useUpdatePlayer, useDeletePlayer } from "@/hooks/usePlayers";
 import type { Player } from "@/hooks/usePlayers";
 import { PlayerFilters } from "@/components/players/PlayerFilters";
@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function Players() {
   const { toast } = useToast();
   const { data: teams, isLoading: teamsLoading } = useTeams();
-  const selectedTeamId = teams?.[0]?.id;
+  const selectedTeamId = teams?.[0]?.id as string | undefined;
   const { data: players, isLoading: playersLoading } = usePlayers(selectedTeamId);
 
   const [search, setSearch] = useState("");
@@ -21,15 +21,15 @@ export default function Players() {
   const [viewingPlayer, setViewingPlayer] = useState<Player | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const addPlayer = useAddPlayer();
+  const addPlayer = useAddPlayer(selectedTeamId ?? "");
   const updatePlayer = useUpdatePlayer();
-  const deletePlayer = useDeletePlayer();
+  const deletePlayer = useDeletePlayer(selectedTeamId ?? "");
 
   const filtered = useMemo(() => {
     if (!players) return [];
     return players.filter((p) => {
-      const matchesSearch = !search || `${p.first_name} ${p.last_name}`.toLowerCase().includes(search.toLowerCase());
-      const matchesPosition = positionFilter === "Tous" || p.position === positionFilter;
+      const matchesSearch = !search || p.full_name.toLowerCase().includes(search.toLowerCase());
+      const matchesPosition = positionFilter === "Tous" || p.position_preferred === positionFilter;
       return matchesSearch && matchesPosition;
     });
   }, [players, search, positionFilter]);
@@ -37,20 +37,25 @@ export default function Players() {
   const positionStats = useMemo(() => {
     if (!players) return { Gardien: 0, Défenseur: 0, Milieu: 0, Attaquant: 0 };
     const counts: Record<string, number> = { Gardien: 0, Défenseur: 0, Milieu: 0, Attaquant: 0 };
-    players.forEach((p) => { counts[p.position] = (counts[p.position] || 0) + 1; });
+    players.forEach((p) => {
+      if (p.position_preferred) counts[p.position_preferred] = (counts[p.position_preferred] || 0) + 1;
+    });
     return counts;
   }, [players]);
 
   const handleSubmit = async (data: {
-    first_name: string; last_name: string; position: string;
-    jersey_number: number | null; email: string | null; phone: string | null; avatar_url: string | null;
+    full_name: string;
+    position_preferred: string | null;
+    shirt_number: number | null;
+    avatar_url: string | null;
+    nickname: string | null;
   }) => {
     try {
       if (editingPlayer) {
         await updatePlayer.mutateAsync({ id: editingPlayer.id, ...data });
         toast({ title: "Joueur modifié ✓" });
       } else {
-        await addPlayer.mutateAsync({ ...data, team_id: selectedTeamId! });
+        await addPlayer.mutateAsync(data);
         toast({ title: "Joueur ajouté ✓" });
       }
       setDialogOpen(false);
@@ -63,7 +68,7 @@ export default function Players() {
   const handleDelete = async (player: Player) => {
     try {
       await deletePlayer.mutateAsync(player.id);
-      toast({ title: `${player.first_name} ${player.last_name} supprimé` });
+      toast({ title: `${player.full_name} retiré de l'équipe` });
     } catch (err: any) {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
     }
@@ -112,10 +117,10 @@ export default function Players() {
         <div className="grid grid-cols-4 gap-2">
           {(["Gardien", "Défenseur", "Milieu", "Attaquant"] as const).map((pos) => {
             const config: Record<string, { bg: string; text: string; border: string }> = {
-              Gardien: { bg: "bg-[rgba(79,142,255,0.08)]", text: "text-[var(--color-info)]", border: "border-[rgba(79,142,255,0.15)]" },
-              Défenseur: { bg: "bg-[rgba(255,59,48,0.08)]", text: "text-[var(--color-danger)]", border: "border-[rgba(255,59,48,0.15)]" },
-              Milieu: { bg: "bg-[rgba(255,214,10,0.08)]", text: "text-[var(--color-warning)]", border: "border-[rgba(255,214,10,0.15)]" },
-              Attaquant: { bg: "bg-[rgba(22,255,110,0.08)]", text: "text-[var(--color-success)]", border: "border-[rgba(22,255,110,0.15)]" },
+              Gardien:   { bg: "bg-[rgba(79,142,255,0.08)]",  text: "text-[var(--color-info)]",    border: "border-[rgba(79,142,255,0.15)]"  },
+              Défenseur: { bg: "bg-[rgba(255,59,48,0.08)]",   text: "text-[var(--color-danger)]",  border: "border-[rgba(255,59,48,0.15)]"   },
+              Milieu:    { bg: "bg-[rgba(255,214,10,0.08)]",  text: "text-[var(--color-warning)]", border: "border-[rgba(255,214,10,0.15)]"  },
+              Attaquant: { bg: "bg-[rgba(22,255,110,0.08)]",  text: "text-[var(--color-success)]", border: "border-[rgba(22,255,110,0.15)]"  },
             };
             const c = config[pos];
             return (

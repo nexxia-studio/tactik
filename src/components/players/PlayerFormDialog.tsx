@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Camera, X } from "lucide-react";
+import { Camera } from "lucide-react";
 import type { Player } from "@/hooks/usePlayers";
 import { uploadPlayerAvatar } from "@/hooks/usePlayers";
 import {
@@ -16,24 +16,20 @@ interface PlayerFormDialogProps {
   onOpenChange: (open: boolean) => void;
   player?: Player | null;
   onSubmit: (data: {
-    first_name: string;
-    last_name: string;
-    position: string;
-    jersey_number: number | null;
-    email: string | null;
-    phone: string | null;
+    full_name: string;
+    position_preferred: string | null;
+    shirt_number: number | null;
     avatar_url: string | null;
+    nickname: string | null;
   }) => void;
   submitting: boolean;
 }
 
 export function PlayerFormDialog({ open, onOpenChange, player, onSubmit, submitting }: PlayerFormDialogProps) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [position, setPosition] = useState("Milieu");
-  const [jerseyNumber, setJerseyNumber] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [shirtNumber, setShirtNumber] = useState("");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -41,18 +37,15 @@ export function PlayerFormDialog({ open, onOpenChange, player, onSubmit, submitt
 
   useEffect(() => {
     if (player) {
-      setFirstName(player.first_name);
-      setLastName(player.last_name);
-      setPosition(player.position);
-      setJerseyNumber(player.jersey_number?.toString() || "");
-      setEmail(player.email || "");
-      setPhone(player.phone || "");
+      setFullName(player.full_name);
+      setNickname(player.nickname || "");
+      setPosition(player.position_preferred || "Milieu");
+      setShirtNumber(player.shirt_number?.toString() || "");
       setAvatarPreview(player.avatar_url);
       setAvatarFile(null);
     } else {
-      setFirstName(""); setLastName(""); setPosition("Milieu");
-      setJerseyNumber(""); setEmail(""); setPhone("");
-      setAvatarPreview(null); setAvatarFile(null);
+      setFullName(""); setNickname(""); setPosition("Milieu");
+      setShirtNumber(""); setAvatarPreview(null); setAvatarFile(null);
     }
   }, [player, open]);
 
@@ -80,13 +73,11 @@ export function PlayerFormDialog({ open, onOpenChange, player, onSubmit, submitt
     }
 
     onSubmit({
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      position,
-      jersey_number: jerseyNumber ? parseInt(jerseyNumber) : null,
-      email: email.trim() || null,
-      phone: phone.trim() || null,
+      full_name: fullName.trim(),
+      position_preferred: position || null,
+      shirt_number: shirtNumber ? parseInt(shirtNumber) : null,
       avatar_url,
+      nickname: nickname.trim() || null,
     });
   };
 
@@ -125,15 +116,25 @@ export function PlayerFormDialog({ open, onOpenChange, player, onSubmit, submitt
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="font-ui text-[11px] uppercase tracking-[0.15em] text-t-secondary">Prénom</label>
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required placeholder="Prénom" className={inputClass} />
-            </div>
-            <div className="space-y-1">
-              <label className="font-ui text-[11px] uppercase tracking-[0.15em] text-t-secondary">Nom</label>
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} required placeholder="Nom" className={inputClass} />
-            </div>
+          <div className="space-y-1">
+            <label className="font-ui text-[11px] uppercase tracking-[0.15em] text-t-secondary">Nom complet</label>
+            <input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              placeholder="Prénom Nom"
+              className={inputClass}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-ui text-[11px] uppercase tracking-[0.15em] text-t-secondary">Surnom (optionnel)</label>
+            <input
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              placeholder="Ex: Dédé, Kev'…"
+              className={inputClass}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -145,24 +146,21 @@ export function PlayerFormDialog({ open, onOpenChange, player, onSubmit, submitt
             </div>
             <div className="space-y-1">
               <label className="font-ui text-[11px] uppercase tracking-[0.15em] text-t-secondary">Numéro</label>
-              <input type="number" min="1" max="99" value={jerseyNumber} onChange={(e) => setJerseyNumber(e.target.value)} placeholder="—" className={inputClass} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="font-ui text-[11px] uppercase tracking-[0.15em] text-t-secondary">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Optionnel" className={inputClass} />
-            </div>
-            <div className="space-y-1">
-              <label className="font-ui text-[11px] uppercase tracking-[0.15em] text-t-secondary">Téléphone</label>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Optionnel" className={inputClass} />
+              <input
+                type="number"
+                min="1"
+                max="99"
+                value={shirtNumber}
+                onChange={(e) => setShirtNumber(e.target.value)}
+                placeholder="—"
+                className={inputClass}
+              />
             </div>
           </div>
 
           <button
             type="submit"
-            disabled={isSubmitting || !firstName.trim() || !lastName.trim()}
+            disabled={isSubmitting || !fullName.trim()}
             className="w-full font-ui text-[11px] font-semibold tracking-wider uppercase
                        px-4 py-3 rounded-lg bg-primary text-primary-text
                        hover:opacity-90 active:scale-[0.98] transition-all

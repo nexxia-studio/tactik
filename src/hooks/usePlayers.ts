@@ -4,17 +4,21 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export interface Player {
   id: string;
-  team_id: string;
-  first_name: string;
-  last_name: string;
-  position: string;
-  jersey_number: number | null;
-  email: string | null;
-  phone: string | null;
+  user_id: string | null;
+  full_name: string;
+  nickname: string | null;
   avatar_url: string | null;
+  birth_date: string | null;
+  position_preferred: string | null;
+  foot_preferred: string | null;
+  shirt_number: number | null;
+  xp_points: number;
+  level: number;
+  is_claimed: boolean;
   created_at: string;
 }
 
+// Fetch all players belonging to a team (via team_members join)
 export function usePlayers(teamId?: string) {
   const { user } = useAuth();
   return useQuery({
@@ -22,12 +26,17 @@ export function usePlayers(teamId?: string) {
     enabled: !!user && !!teamId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("players")
-        .select("*")
+        .from("team_members")
+        .select("players(*)")
         .eq("team_id", teamId!)
-        .order("last_name");
+        .not("player_id", "is", null)
+        .order("players(full_name)");
+
       if (error) throw error;
-      return data as Player[];
+
+      return (data ?? [])
+        .map((row: any) => row.players as Player)
+        .filter(Boolean);
     },
   });
 }
@@ -38,45 +47,82 @@ export function useTeams() {
     queryKey: ["teams"],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("teams").select("*").order("name");
+      const { data, error } = await supabase
+        .from("team_members")
+        .select("team_id, teams(*)")
+        .eq("user_id", user!.id)
+        .not("coach_id", "is", null);
       if (error) throw error;
-      return data;
+      return (data ?? []).map((row: any) => row.teams).filter(Boolean);
     },
   });
 }
 
-export function useAddPlayer() {
+export function useAddPlayer(teamId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (player: Omit<Player, "id" | "created_at">) => {
-      const { data, error } = await supabase.from("players").insert(player).select().single();
-      if (error) throw error;
-      return data;
+    mutationFn: async (playerData: {
+      full_name: string;
+      position_preferred: string | null;
+      shirt_number: number | null;
+      avatar_url: string | null;
+      nickname: string | null;
+    }) => {
+      // 1. Create the player record
+      const { data: player, error: playerErr } = await supabase
+        .from("players")
+        .insert(playerData)
+        .select()
+        .single();
+      if (playerErr) throw playerErr;
+
+      // 2. Link player to team via team_members
+      const { error: memberErr } = await supabase
+        .from("team_members")
+        .insert({ team_id: teamId, player_id: player.id, role: "player" });
+      if (memberErr) throw memberErr;
+
+      return player as Player;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["players"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["players", teamId] }),
   });
 }
 
 export function useUpdatePlayer() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Player> & { id: string }) => {
-      const { data, error } = await supabase.from("players").update(updates).eq("id", id).select().single();
+    mutationFn: async ({
+      id,
+      ...updates
+    }: Partial<Pick<Player, "full_name" | "position_preferred" | "shirt_number" | "avatar_url" | "nickname">> & {
+      id: string;
+    }) => {
+      const { data, error } = await supabase
+        .from("players")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
       if (error) throw error;
-      return data;
+      return data as Player;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["players"] }),
   });
 }
 
-export function useDeletePlayer() {
+export function useDeletePlayer(teamId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("players").delete().eq("id", id);
+    mutationFn: async (playerId: string) => {
+      // Remove player from team (deletes team_members row only)
+      const { error } = await supabase
+        .from("team_members")
+        .delete()
+        .eq("team_id", teamId)
+        .eq("player_id", playerId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["players"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["players", teamId] }),
   });
 }
 

@@ -1,0 +1,197 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ──────────────────────────────────────
+   FONTS
+   ────────────────────────────────────── */
+
+@font-face {
+  font-family: 'Chaney';
+  src: url('/fonts/ChaneyUltraExtended.woff2') format('woff2'),
+       url('/fonts/ChaneyUltraExtended.woff') format('woff');
+  font-weight: 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'N27';
+  src: url('/fonts/N27-Regular.woff2') format('woff2'),
+       url('/fonts/N27-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ──────────────────────────────────────
+   DESIGN SYSTEM — CSS VARIABLES
+   ────────────────────────────────────── */
+
+:root {
+  /* Typography scale */
+  --font-display: 'Chaney', 'Arial Black', sans-serif;
+  --font-ui: 'N27', 'DM Sans', sans-serif;
+  --text-hero: clamp(40px, 6vw, 72px);
+  --text-h1: clamp(28px, 4vw, 40px);
+  --text-h2: clamp(18px, 2.5vw, 24px);
+  --text-h3: 16px;
+  --text-body: 14px;
+  --text-small: 13px;
+  --text-label: 11px;
+  --text-micro: 10px;
+
+  /* Accent primary — replaceable per club theme */
+  --color-primary: #16FF6E;
+  --color-primary-dim: rgba(22, 255, 110, 0.12);
+  --color-primary-glow: rgba(22, 255, 110, 0.20);
+  --color-primary-border: rgba(22, 255, 110, 0.18);
+  --color-primary-text: #000000;
+
+  /* Backgrounds — Dark mode default */
+  --bg-base: #0A0D0F;
+  --bg-surface-1: #111518;
+  --bg-surface-2: #181E22;
+  --bg-surface-3: #1D2429;
+
+  /* Text */
+  --text-primary: #EEF2EF;
+  --text-secondary: #667A70;
+  --text-muted: #2D3D35;
+  --text-disabled: #1F2E28;
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* Semantic — fixed, never overridden by theme */
+  --color-success: #16FF6E;
+  --color-warning: #FFD60A;
+  --color-danger: #FF3B30;
+  --color-info: #4F8EFF;
+
+  /* Chemistry FUT */
+  --chem-optimal: #16FF6E;
+  --chem-good: #FFD60A;
+  --chem-weak: #FF8C00;
+  --chem-bad: #FF3B30;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+}
+
+[data-theme="light"] {
+  --bg-base: #F4F6F4;
+  --bg-surface-1: #FFFFFF;
+  --bg-surface-2: #F0F2F0;
+  --bg-surface-3: #E8EDE9;
+  --text-primary: #0D1410;
+  --text-secondary: #4A6055;
+  --text-muted: #8BA898;
+  --text-disabled: #C4D4CE;
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.10);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --color-primary: #0FCC58;
+  --color-primary-dim: rgba(15, 204, 88, 0.10);
+  --color-primary-glow: rgba(15, 204, 88, 0.16);
+  --color-primary-border: rgba(15, 204, 88, 0.20);
+  --color-primary-text: #FFFFFF;
+}
+
+/* ──────────────────────────────────────
+   BASE STYLES
+   ────────────────────────────────────── */
+
+@layer base {
+  * {
+    border-color: var(--border-subtle);
+  }
+
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    font-size: var(--text-body);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ──────────────────────────────────────
+   UTILITY CLASSES
+   ────────────────────────────────────── */
+
+@layer utilities {
+  .glow-primary {
+    box-shadow: 0 0 12px var(--color-primary-glow),
+                0 0 24px var(--color-primary-dim);
+  }
+
+  .glow-text-primary {
+    text-shadow: 0 0 20px var(--color-primary-glow);
+  }
+
+  .bg-gradient-hero {
+    background:
+      radial-gradient(ellipse 60% 50% at 15% 40%, rgba(22,255,110,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 60% at 80% 60%, rgba(22,100,255,0.04) 0%, transparent 70%),
+      var(--bg-base);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .font-ui {
+    font-family: var(--font-ui);
+  }
+
+  .text-label {
+    font-family: var(--font-ui);
+    font-size: var(--text-label);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+}
+
+/* ──────────────────────────────────────
+   TRANSITIONS
+   ────────────────────────────────────── */
+
+* {
+  transition-property: color, background-color, border-color, opacity, transform;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: var(--radius-full);
+}

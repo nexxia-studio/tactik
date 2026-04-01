@@ -135,10 +135,10 @@ export default function Dashboard() {
 
       {/* Stat Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        <StatCard icon={Calendar}  label="PROCHAIN MATCH"  value={nextMatchValue}    sub={nextMatchSub}    loading={isLoading} />
-        <StatCard icon={Dumbbell}  label="ENTRAÎNEMENT"    value={nextTrainingValue} sub={nextTrainingSub} loading={isLoading} />
-        <StatCard icon={Users}     label="PRÉSENCES 30J"   value={attendanceValue}   sub={attendanceSub}   loading={isLoading} />
-        <StatCard icon={Wallet}    label="CAGNOTTE"         value={balanceValue}      sub={balanceSub}      loading={isLoading} />
+        <StatCard icon={Calendar}  label="PROCHAIN MATCH"  value={nextMatchValue}    sub={nextMatchSub}    loading={isLoading || !data} />
+        <StatCard icon={Dumbbell}  label="ENTRAÎNEMENT"    value={nextTrainingValue} sub={nextTrainingSub} loading={isLoading || !data} />
+        <StatCard icon={Users}     label="PRÉSENCES 30J"   value={attendanceValue}   sub={attendanceSub}   loading={isLoading || !data} />
+        <StatCard icon={Wallet}    label="CAGNOTTE"         value={balanceValue}      sub={balanceSub}      loading={isLoading || !data} />
       </div>
 
       {/* Team Form */}
@@ -151,7 +151,7 @@ export default function Dashboard() {
           <span className="text-[12px] text-t-secondary font-ui">5 derniers matchs</span>
         </div>
 
-        {isLoading ? (
+        {isLoading || !data ? (
           <div className="space-y-2">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-10 bg-bg-surface-2 rounded-lg animate-pulse" />

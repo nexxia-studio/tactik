@@ -1,20 +1,43 @@
-import {
-  Calendar,
-  Dumbbell,
-  TrendingUp,
-  Users,
-  Wallet,
-  ChevronRight,
-} from "lucide-react";
+import { Calendar, Dumbbell, TrendingUp, Users, Wallet, ChevronRight } from "lucide-react";
+import { useTeams } from "@/hooks/usePlayers";
+import { useDashboard } from "@/hooks/useDashboard";
+import type { DashboardMatch } from "@/hooks/useDashboard";
 
-/* ── Mock Data ── */
-const lastMatches = [
-  { opponent: "FC Genappe", score: "3 - 1", result: "W", date: "23/03" },
-  { opponent: "JS Tamines", score: "1 - 1", result: "D", date: "16/03" },
-  { opponent: "RC Jodoigne", score: "2 - 0", result: "W", date: "09/03" },
-  { opponent: "US Ciney", score: "0 - 2", result: "L", date: "02/03" },
-  { opponent: "RCS Brainois", score: "4 - 1", result: "W", date: "23/02" },
-];
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("fr-BE", {
+    day: "numeric",
+    month: "short",
+  }).toUpperCase();
+}
+
+function fmtTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("fr-BE", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function fmtBalance(value: number): string {
+  return `€ ${value.toFixed(0)}`;
+}
+
+function getResult(match: DashboardMatch): "W" | "D" | "L" | null {
+  if (match.score_home == null || match.score_away == null) return null;
+  const ours = match.is_home ? match.score_home : match.score_away;
+  const theirs = match.is_home ? match.score_away : match.score_home;
+  if (ours > theirs) return "W";
+  if (ours === theirs) return "D";
+  return "L";
+}
+
+function getScore(match: DashboardMatch): string {
+  if (match.score_home == null || match.score_away == null) return "— - —";
+  return `${match.score_home} - ${match.score_away}`;
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────
 
 const resultColor: Record<string, string> = {
   W: "bg-success",
@@ -27,11 +50,13 @@ function StatCard({
   label,
   value,
   sub,
+  loading,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   sub?: string;
+  loading?: boolean;
 }) {
   return (
     <div className="bg-bg-surface-1 border border-b-subtle rounded-xl p-4 animate-fade-in">
@@ -41,23 +66,66 @@ function StatCard({
         </div>
         <span className="text-label">{label}</span>
       </div>
-      <p className="font-display text-[28px] text-t-primary leading-none tracking-tight">
-        {value}
-      </p>
-      {sub && <p className="text-[12px] text-t-secondary font-ui mt-1.5">{sub}</p>}
+      {loading ? (
+        <div className="h-8 w-24 bg-bg-surface-2 rounded animate-pulse" />
+      ) : (
+        <p className="font-display text-[28px] text-t-primary leading-none tracking-tight">
+          {value}
+        </p>
+      )}
+      {!loading && sub && (
+        <p className="text-[12px] text-t-secondary font-ui mt-1.5">{sub}</p>
+      )}
     </div>
   );
 }
 
+// ── Page ───────────────────────────────────────────────────────────────────
+
 export default function Dashboard() {
+  const { data: teams } = useTeams();
+  const teamId = teams?.[0]?.id as string | undefined;
+  const { data, isLoading } = useDashboard(teamId);
+
+  // Stat card values
+  const nextMatchValue = data?.nextMatch ? fmtDate(data.nextMatch.match_date) : "—";
+  const nextMatchSub = data?.nextMatch
+    ? `vs ${data.nextMatch.opponent} — ${fmtTime(data.nextMatch.match_date)}`
+    : "Aucun match planifié";
+
+  const nextTrainingValue = data?.nextTraining ? fmtDate(data.nextTraining.scheduled_at) : "—";
+  const nextTrainingSub = data?.nextTraining
+    ? data.nextTraining.location ?? data.nextTraining.notes ?? "Entraînement prévu"
+    : "Aucun entraînement planifié";
+
+  const attendanceValue =
+    data?.attendanceRate != null ? `${data.attendanceRate}%` : "—";
+  const attendanceSub =
+    data?.attendanceTotal != null && data.attendanceTotal > 0
+      ? `${data.attendancePresent}/${data.attendanceTotal} présences (30j)`
+      : "Pas encore de données";
+
+  const balanceValue = data?.balance != null ? fmtBalance(data.balance) : "—";
+  const balanceSub =
+    data != null
+      ? `${data.unpaidFinesCount} amende${data.unpaidFinesCount !== 1 ? "s" : ""} impayée${data.unpaidFinesCount !== 1 ? "s" : ""} ce mois`
+      : undefined;
+
+  // Form summary from last 5 matches
+  const formSummary = (data?.lastMatches ?? []).reduce(
+    (acc, m) => {
+      const r = getResult(m);
+      if (r) acc[r]++;
+      return acc;
+    },
+    { W: 0, D: 0, L: 0 }
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1
-          className="font-display text-t-primary leading-none"
-          style={{ fontSize: "var(--text-h1)" }}
-        >
+        <h1 className="font-display text-t-primary leading-none" style={{ fontSize: "var(--text-h1)" }}>
           DASHBOARD
         </h1>
         <p className="text-t-secondary font-ui text-[var(--text-small)] mt-2">
@@ -67,10 +135,10 @@ export default function Dashboard() {
 
       {/* Stat Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        <StatCard icon={Calendar} label="PROCHAIN MATCH" value="29 MAR" sub="vs FC Genappe — 20h00" />
-        <StatCard icon={Dumbbell} label="ENTRAÎNEMENT" value="31 MAR" sub="Tactique — 19h30" />
-        <StatCard icon={Users} label="PRÉSENCES 30J" value="78%" sub="18/23 joueurs en moyenne" />
-        <StatCard icon={Wallet} label="CAGNOTTE" value="€ 245" sub="12 amendes ce mois" />
+        <StatCard icon={Calendar}  label="PROCHAIN MATCH"  value={nextMatchValue}    sub={nextMatchSub}    loading={isLoading} />
+        <StatCard icon={Dumbbell}  label="ENTRAÎNEMENT"    value={nextTrainingValue} sub={nextTrainingSub} loading={isLoading} />
+        <StatCard icon={Users}     label="PRÉSENCES 30J"   value={attendanceValue}   sub={attendanceSub}   loading={isLoading} />
+        <StatCard icon={Wallet}    label="CAGNOTTE"         value={balanceValue}      sub={balanceSub}      loading={isLoading} />
       </div>
 
       {/* Team Form */}
@@ -83,47 +151,62 @@ export default function Dashboard() {
           <span className="text-[12px] text-t-secondary font-ui">5 derniers matchs</span>
         </div>
 
-        <div className="flex items-center gap-2 mb-5">
-          {lastMatches.map((m, i) => (
-            <div
-              key={i}
-              className={`w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-ui font-bold tracking-wider ${resultColor[m.result]} text-primary-text`}
-            >
-              {m.result}
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-10 bg-bg-surface-2 rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : data?.lastMatches.length === 0 ? (
+          <p className="font-ui text-[13px] text-t-muted py-4 text-center">
+            Aucun match joué pour l'instant.
+          </p>
+        ) : (
+          <>
+            {/* Result dots + summary */}
+            <div className="flex items-center gap-2 mb-5">
+              {data!.lastMatches.map((m) => {
+                const r = getResult(m);
+                return (
+                  <div
+                    key={m.id}
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-ui font-bold tracking-wider ${r ? resultColor[r] : "bg-bg-surface-2"} text-primary-text`}
+                  >
+                    {r ?? "?"}
+                  </div>
+                );
+              })}
+              <span className="ml-2 font-display text-[20px] text-primary tracking-tight">
+                {formSummary.W}V {formSummary.D}N {formSummary.L}D
+              </span>
             </div>
-          ))}
-          <span className="ml-2 font-display text-[20px] text-primary tracking-tight">
-            3V 1N 1D
-          </span>
-        </div>
 
-        {/* Match List */}
-        <div className="space-y-1">
-          {lastMatches.map((m, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-bg-surface-2 transition-all cursor-pointer group"
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-2 h-2 rounded-full ${resultColor[m.result]}`}
-                />
-                <span className="text-[13px] font-ui text-t-primary">
-                  {m.opponent}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="font-display text-[14px] text-t-primary tracking-wider">
-                  {m.score}
-                </span>
-                <span className="text-[12px] text-t-muted font-ui">
-                  {m.date}
-                </span>
-                <ChevronRight className="h-4 w-4 text-t-muted opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
+            {/* Match list */}
+            <div className="space-y-1">
+              {data!.lastMatches.map((m) => {
+                const r = getResult(m);
+                return (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-bg-surface-2 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full ${r ? resultColor[r] : "bg-bg-surface-3"}`} />
+                      <span className="text-[13px] font-ui text-t-primary">{m.opponent}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-display text-[14px] text-t-primary tracking-wider">
+                        {getScore(m)}
+                      </span>
+                      <span className="text-[12px] text-t-muted font-ui">{fmtDate(m.match_date)}</span>
+                      <ChevronRight className="h-4 w-4 text-t-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

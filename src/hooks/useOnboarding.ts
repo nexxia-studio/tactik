@@ -24,7 +24,7 @@ export function useOnboarding(): OnboardingState {
     const { data } = await supabase
       .from("user_profiles")
       .select("onboarding_completed, organization_id")
-      .eq("user_id", user.id)
+      .eq("id", user.id)
       .maybeSingle();
 
     if (data) {

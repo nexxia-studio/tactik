@@ -17,7 +17,6 @@ export default function OnboardingClub() {
     setSubmitting(true);
 
     try {
-      // Create org
       const { data: org, error: orgError } = await supabase
         .from("organizations")
         .insert({ name: clubName.trim(), created_by: user.id })
@@ -26,11 +25,10 @@ export default function OnboardingClub() {
 
       if (orgError) throw orgError;
 
-      // Link org to profile
       const { error: profileError } = await supabase
         .from("user_profiles")
         .update({ organization_id: org.id })
-        .eq("user_id", user.id);
+        .eq("id", user.id);
 
       if (profileError) throw profileError;
 
@@ -45,7 +43,6 @@ export default function OnboardingClub() {
   return (
     <div className="min-h-screen bg-bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-md space-y-8">
-        {/* Progress */}
         <div className="flex items-center gap-2">
           {[1, 2, 3].map((step) => (
             <div

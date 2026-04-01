@@ -6,22 +6,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 interface PlayerRow {
-  first_name: string;
-  last_name: string;
-  position: string;
+  full_name: string;
+  position_preferred: string;
 }
 
-const POSITIONS = [
-  "Gardien",
-  "Défenseur",
-  "Milieu",
-  "Attaquant",
-];
+const POSITIONS = ["Gardien", "Défenseur", "Milieu", "Attaquant"];
 
 const emptyPlayer = (): PlayerRow => ({
-  first_name: "",
-  last_name: "",
-  position: "Milieu",
+  full_name: "",
+  position_preferred: "Milieu",
 });
 
 export default function OnboardingTeam() {
@@ -38,7 +31,7 @@ export default function OnboardingTeam() {
     supabase
       .from("user_profiles")
       .select("organization_id")
-      .eq("user_id", user.id)
+      .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
         if (data?.organization_id) setOrgId(data.organization_id);
@@ -61,7 +54,7 @@ export default function OnboardingTeam() {
     setSubmitting(true);
 
     try {
-      // Create team
+      // 1. Créer l'équipe
       const { data: team, error: teamError } = await supabase
         .from("teams")
         .insert({ name: teamName.trim(), organization_id: orgId })
@@ -70,28 +63,65 @@ export default function OnboardingTeam() {
 
       if (teamError) throw teamError;
 
-      // Filter valid players and insert
-      const validPlayers = players.filter(
-        (p) => p.first_name.trim() && p.last_name.trim()
-      );
+      // 2. Créer le profil coach
+      const { data: coach, error: coachError } = await supabase
+        .from("coaches")
+        .insert({
+          user_id: user.id,
+          full_name: user.user_metadata?.full_name || user.email,
+        })
+        .select("id")
+        .single();
+
+      if (coachError) throw coachError;
+
+      // 3. Lier le coach à l'équipe
+      const { error: coachMemberError } = await supabase
+        .from("team_members")
+        .insert({
+          team_id: team.id,
+          user_id: user.id,
+          coach_id: coach.id,
+          role: "coach",
+        });
+
+      if (coachMemberError) throw coachMemberError;
+
+      // 4. Créer les joueurs valides
+      const validPlayers = players.filter((p) => p.full_name.trim());
 
       if (validPlayers.length > 0) {
-        const { error: playersError } = await supabase.from("players").insert(
-          validPlayers.map((p) => ({
-            team_id: team.id,
-            first_name: p.first_name.trim(),
-            last_name: p.last_name.trim(),
-            position: p.position,
-          }))
-        );
+        const { data: createdPlayers, error: playersError } = await supabase
+          .from("players")
+          .insert(
+            validPlayers.map((p) => ({
+              full_name: p.full_name.trim(),
+              position_preferred: p.position_preferred,
+            }))
+          )
+          .select("id");
+
         if (playersError) throw playersError;
+
+        // 5. Lier les joueurs à l'équipe
+        const { error: membersError } = await supabase
+          .from("team_members")
+          .insert(
+            createdPlayers.map((p) => ({
+              team_id: team.id,
+              player_id: p.id,
+              role: "player",
+            }))
+          );
+
+        if (membersError) throw membersError;
       }
 
-      // Mark onboarding as completed
+      // 6. Marquer l'onboarding comme terminé
       const { error: profileError } = await supabase
         .from("user_profiles")
         .update({ onboarding_completed: true, updated_at: new Date().toISOString() })
-        .eq("user_id", user.id);
+        .eq("id", user.id);
 
       if (profileError) throw profileError;
 
@@ -107,7 +137,6 @@ export default function OnboardingTeam() {
   return (
     <div className="min-h-screen bg-bg-base flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-lg space-y-8">
-        {/* Progress */}
         <div className="flex items-center gap-2">
           {[1, 2, 3].map((step) => (
             <div key={step} className="h-1 flex-1 rounded-full bg-primary" />
@@ -128,7 +157,6 @@ export default function OnboardingTeam() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Team name */}
           <div className="space-y-1.5">
             <label className="font-ui text-[11px] uppercase tracking-[0.15em] text-t-secondary">
               Nom de l'équipe
@@ -145,7 +173,6 @@ export default function OnboardingTeam() {
             />
           </div>
 
-          {/* Players */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="font-ui text-[11px] uppercase tracking-[0.15em] text-t-secondary">
@@ -169,21 +196,14 @@ export default function OnboardingTeam() {
                 >
                   <input
                     type="text"
-                    value={player.first_name}
-                    onChange={(e) => updatePlayer(idx, "first_name", e.target.value)}
-                    placeholder="Prénom"
-                    className="flex-1 min-w-0 font-ui text-[13px] bg-transparent text-t-primary outline-none placeholder:text-t-muted"
-                  />
-                  <input
-                    type="text"
-                    value={player.last_name}
-                    onChange={(e) => updatePlayer(idx, "last_name", e.target.value)}
-                    placeholder="Nom"
+                    value={player.full_name}
+                    onChange={(e) => updatePlayer(idx, "full_name", e.target.value)}
+                    placeholder="Nom complet"
                     className="flex-1 min-w-0 font-ui text-[13px] bg-transparent text-t-primary outline-none placeholder:text-t-muted"
                   />
                   <select
-                    value={player.position}
-                    onChange={(e) => updatePlayer(idx, "position", e.target.value)}
+                    value={player.position_preferred}
+                    onChange={(e) => updatePlayer(idx, "position_preferred", e.target.value)}
                     className="font-ui text-[12px] bg-bg-surface-2 text-t-secondary rounded px-2 py-1 outline-none border-none cursor-pointer"
                   >
                     {POSITIONS.map((pos) => (

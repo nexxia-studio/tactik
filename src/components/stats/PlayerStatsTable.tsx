@@ -1,54 +1,45 @@
 import { useState, useMemo } from "react";
 import { ArrowUpDown, ChevronDown, ChevronUp } from "lucide-react";
 import type { Player } from "@/hooks/usePlayers";
+import type { PlayerStat } from "@/hooks/useTeamStats";
 
-/* ── Mock stats per player (keyed by player id, fallback for unknown) ── */
-function mockPlayerStats(player: Player) {
-  // Deterministic "random" from player name length for demo consistency
-  const seed = player.first_name.length + player.last_name.length;
-  return {
-    matches: 10 + (seed % 9),
-    starts: 6 + (seed % 10),
-    goals: player.position === "Attaquant" ? 2 + (seed % 8) : seed % 3,
-    assists: 1 + (seed % 5),
-    avgRating: +(5.5 + (seed % 30) / 10).toFixed(1),
-    yellowCards: seed % 4,
-    redCards: seed % 7 === 0 ? 1 : 0,
-  };
-}
+const EMPTY_STAT: PlayerStat = {
+  matches: 0, goals: 0, assists: 0, yellowCards: 0, redCards: 0, avgRating: null,
+};
 
 type SortKey = "name" | "matches" | "goals" | "assists" | "avgRating";
 
 const positionConfig: Record<string, { bg: string; text: string }> = {
-  Gardien: { bg: "bg-[rgba(79,142,255,0.15)]", text: "text-[var(--color-info)]" },
-  Défenseur: { bg: "bg-[rgba(255,59,48,0.15)]", text: "text-[var(--color-danger)]" },
-  Milieu: { bg: "bg-[rgba(255,214,10,0.15)]", text: "text-[var(--color-warning)]" },
-  Attaquant: { bg: "bg-[rgba(22,255,110,0.15)]", text: "text-[var(--color-success)]" },
+  Gardien:   { bg: "bg-[rgba(79,142,255,0.15)]",  text: "text-[var(--color-info)]"    },
+  Défenseur: { bg: "bg-[rgba(255,59,48,0.15)]",   text: "text-[var(--color-danger)]"  },
+  Milieu:    { bg: "bg-[rgba(255,214,10,0.15)]",  text: "text-[var(--color-warning)]" },
+  Attaquant: { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]" },
 };
 
 interface PlayerStatsTableProps {
   players: Player[];
+  playerStats: Record<string, PlayerStat>;
   isLoading: boolean;
 }
 
-export function PlayerStatsTable({ players, isLoading }: PlayerStatsTableProps) {
+export function PlayerStatsTable({ players, playerStats, isLoading }: PlayerStatsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("avgRating");
   const [sortAsc, setSortAsc] = useState(false);
 
   const playersWithStats = useMemo(
-    () => players.map((p) => ({ ...p, stats: mockPlayerStats(p) })),
-    [players]
+    () => players.map((p) => ({ ...p, stats: playerStats[p.id] ?? EMPTY_STAT })),
+    [players, playerStats]
   );
 
   const sorted = useMemo(() => {
     return [...playersWithStats].sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
-        case "name": cmp = a.last_name.localeCompare(b.last_name); break;
-        case "matches": cmp = a.stats.matches - b.stats.matches; break;
-        case "goals": cmp = a.stats.goals - b.stats.goals; break;
-        case "assists": cmp = a.stats.assists - b.stats.assists; break;
-        case "avgRating": cmp = a.stats.avgRating - b.stats.avgRating; break;
+        case "name":      cmp = a.full_name.localeCompare(b.full_name); break;
+        case "matches":   cmp = a.stats.matches - b.stats.matches; break;
+        case "goals":     cmp = a.stats.goals - b.stats.goals; break;
+        case "assists":   cmp = a.stats.assists - b.stats.assists; break;
+        case "avgRating": cmp = (a.stats.avgRating ?? 0) - (b.stats.avgRating ?? 0); break;
       }
       return sortAsc ? cmp : -cmp;
     });
@@ -72,16 +63,14 @@ export function PlayerStatsTable({ players, isLoading }: PlayerStatsTableProps) 
   };
 
   if (isLoading) {
-    return (
-      <div className="bg-bg-surface-1 border border-b-subtle rounded-xl p-6 animate-pulse h-[300px]" />
-    );
+    return <div className="bg-bg-surface-1 border border-b-subtle rounded-xl p-6 animate-pulse h-[300px]" />;
   }
 
   return (
     <div className="bg-bg-surface-1 border border-b-subtle rounded-xl overflow-hidden animate-fade-in">
       <div className="px-5 py-4 border-b border-b-subtle">
         <span className="text-label">STATS PAR JOUEUR</span>
-        <p className="font-ui text-[11px] text-t-muted mt-0.5">Données simulées — seront connectées aux feuilles de match.</p>
+        <p className="font-ui text-[11px] text-t-muted mt-0.5">Agrégées depuis les feuilles de match.</p>
       </div>
 
       <div className="overflow-x-auto">
@@ -89,11 +78,11 @@ export function PlayerStatsTable({ players, isLoading }: PlayerStatsTableProps) 
           <thead>
             <tr className="border-b border-b-subtle">
               {([
-                { key: "name" as SortKey, label: "JOUEUR", align: "text-left" },
-                { key: "matches" as SortKey, label: "MJ", align: "text-center" },
-                { key: "goals" as SortKey, label: "BUTS", align: "text-center" },
-                { key: "assists" as SortKey, label: "PD", align: "text-center" },
-                { key: "avgRating" as SortKey, label: "NOTE", align: "text-center" },
+                { key: "name"      as SortKey, label: "JOUEUR", align: "text-left"   },
+                { key: "matches"   as SortKey, label: "MJ",     align: "text-center" },
+                { key: "goals"     as SortKey, label: "BUTS",   align: "text-center" },
+                { key: "assists"   as SortKey, label: "PD",     align: "text-center" },
+                { key: "avgRating" as SortKey, label: "NOTE",   align: "text-center" },
               ]).map((col) => (
                 <th
                   key={col.key}
@@ -119,7 +108,7 @@ export function PlayerStatsTable({ players, isLoading }: PlayerStatsTableProps) 
               </tr>
             ) : (
               sorted.map((player) => {
-                const pos = positionConfig[player.position] || { bg: "bg-bg-surface-2", text: "text-t-secondary" };
+                const pos = positionConfig[player.position_preferred ?? ""] || { bg: "bg-bg-surface-2", text: "text-t-secondary" };
                 return (
                   <tr key={player.id} className="border-b border-b-subtle last:border-0 hover:bg-bg-surface-2/50 transition-colors">
                     <td className="px-4 py-3">
@@ -129,17 +118,17 @@ export function PlayerStatsTable({ players, isLoading }: PlayerStatsTableProps) 
                             <img src={player.avatar_url} alt="" className="h-full w-full object-cover" />
                           ) : (
                             <span className="font-display text-[11px] text-t-muted">
-                              {player.jersey_number || "—"}
+                              {player.shirt_number ?? "—"}
                             </span>
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-ui text-[13px] text-t-primary truncate">
-                            {player.first_name} <span className="font-semibold">{player.last_name.toUpperCase()}</span>
-                          </p>
-                          <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-ui font-semibold uppercase tracking-wider ${pos.bg} ${pos.text}`}>
-                            {player.position}
-                          </span>
+                          <p className="font-ui text-[13px] text-t-primary truncate">{player.full_name}</p>
+                          {player.position_preferred && (
+                            <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-ui font-semibold uppercase tracking-wider ${pos.bg} ${pos.text}`}>
+                              {player.position_preferred}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -147,9 +136,13 @@ export function PlayerStatsTable({ players, isLoading }: PlayerStatsTableProps) 
                     <td className="px-4 py-3 text-center font-display text-[14px] text-t-primary">{player.stats.goals}</td>
                     <td className="px-4 py-3 text-center font-ui text-[13px] text-t-primary">{player.stats.assists}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`font-display text-[14px] ${ratingColor(player.stats.avgRating)}`}>
-                        {player.stats.avgRating}
-                      </span>
+                      {player.stats.avgRating != null ? (
+                        <span className={`font-display text-[14px] ${ratingColor(player.stats.avgRating)}`}>
+                          {player.stats.avgRating}
+                        </span>
+                      ) : (
+                        <span className="font-ui text-[13px] text-t-muted">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-center">
                       {player.stats.yellowCards > 0 && (

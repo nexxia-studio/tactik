@@ -51,7 +51,7 @@ export function useTeams() {
         .from("team_members")
         .select("team_id, teams(*)")
         .eq("user_id", user!.id)
-        .not("coach_id", "is", null);
+        .eq("role", "coach");
       if (error) throw error;
       return (data ?? []).map((row: any) => row.teams).filter(Boolean);
     },

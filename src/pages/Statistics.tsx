@@ -1,15 +1,18 @@
-import { usePlayers, useTeams } from "@/hooks/usePlayers";
+import { useTeams, usePlayers } from "@/hooks/usePlayers";
+import { useTeamStats } from "@/hooks/useTeamStats";
 import { TeamStatsOverview } from "@/components/stats/TeamStatsOverview";
 import { PlayerStatsTable } from "@/components/stats/PlayerStatsTable";
 
 export default function Statistics() {
   const { data: teams } = useTeams();
-  const selectedTeamId = teams?.[0]?.id;
-  const { data: players, isLoading } = usePlayers(selectedTeamId);
+  const teamId = teams?.[0]?.id as string | undefined;
+  const { data: players, isLoading: playersLoading } = usePlayers(teamId);
+  const { data: teamStats, isLoading: statsLoading } = useTeamStats(teamId);
+
+  const isLoading = playersLoading || statsLoading || !teamId;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1
           className="font-display text-t-primary leading-none"
@@ -22,11 +25,13 @@ export default function Statistics() {
         </p>
       </div>
 
-      {/* Team overview */}
-      <TeamStatsOverview />
+      <TeamStatsOverview stats={teamStats} isLoading={isLoading} />
 
-      {/* Player stats */}
-      <PlayerStatsTable players={players || []} isLoading={isLoading} />
+      <PlayerStatsTable
+        players={players ?? []}
+        playerStats={teamStats?.playerStats ?? {}}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

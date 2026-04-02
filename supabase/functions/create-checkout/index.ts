@@ -1,14 +1,10 @@
 import Stripe from "https://esm.sh/stripe@14";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
-  apiVersion: "2024-06-20",
-});
-
-const supabaseAdmin = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-);
+const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SITE_URL = Deno.env.get("SITE_URL") ?? "http://localhost:8081";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -24,66 +20,106 @@ function json(data: unknown, status = 200) {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS });
   }
 
+  // ── Env check ──────────────────────────────────────────────────────────────
+  if (!STRIPE_SECRET_KEY) {
+    console.error("[create-checkout] STRIPE_SECRET_KEY is not set");
+    return json({ error: "Stripe not configured (missing STRIPE_SECRET_KEY)" }, 500);
+  }
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error("[create-checkout] Supabase env vars missing");
+    return json({ error: "Supabase not configured" }, 500);
+  }
+
+  const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
+  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
   try {
-    // ── 1. Authenticate ────────────────────────────────────────────────────
+    // ── 1. Auth ────────────────────────────────────────────────────────────
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "Missing authorization" }, 401);
 
     const token = authHeader.replace("Bearer ", "");
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
-    if (authError || !user) return json({ error: "Invalid token" }, 401);
+    if (authError || !user) {
+      console.error("[create-checkout] Auth error:", authError?.message);
+      return json({ error: "Invalid token" }, 401);
+    }
+    console.log("[create-checkout] User authenticated:", user.id);
 
-    // ── 2. Parse body ──────────────────────────────────────────────────────
-    const { priceId } = await req.json();
-    if (!priceId) return json({ error: "Missing priceId" }, 400);
+    // ── 2. Body ────────────────────────────────────────────────────────────
+    const body = await req.json().catch(() => ({}));
+    const { priceId } = body;
+    if (!priceId || typeof priceId !== "string") {
+      return json({ error: "Missing or invalid priceId" }, 400);
+    }
+    console.log("[create-checkout] priceId:", priceId);
 
-    // ── 3. Resolve organization_id ─────────────────────────────────────────
-    // user_profiles.organization_id is set by OnboardingClub (step 1)
-    const { data: profile } = await supabaseAdmin
-      .from("user_profiles")
-      .select("organization_id")
-      .eq("id", user.id)
-      .maybeSingle();
+    // ── 3. Organization lookup (non-blocking) ──────────────────────────────
+    let organizationId: string | null = null;
+    try {
+      const { data: profile, error: profileError } = await supabaseAdmin
+        .from("user_profiles")
+        .select("organization_id")
+        .eq("id", user.id)
+        .maybeSingle();
 
-    const organizationId: string | null = profile?.organization_id ?? null;
+      if (profileError) {
+        console.warn("[create-checkout] user_profiles lookup error:", profileError.message);
+      } else {
+        organizationId = profile?.organization_id ?? null;
+      }
+    } catch (e) {
+      console.warn("[create-checkout] user_profiles lookup threw:", e);
+    }
 
-    // ── 4. Build Checkout Session params ───────────────────────────────────
-    const siteUrl = Deno.env.get("SITE_URL") ?? "http://localhost:8081";
+    // Fallback: find org via organizations.created_by
+    if (!organizationId) {
+      try {
+        const { data: org, error: orgError } = await supabaseAdmin
+          .from("organizations")
+          .select("id")
+          .eq("created_by", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
+        if (!orgError && org) {
+          organizationId = org.id;
+          console.log("[create-checkout] org found via created_by fallback:", organizationId);
+        }
+      } catch (e) {
+        console.warn("[create-checkout] org fallback lookup threw:", e);
+      }
+    }
+
+    console.log("[create-checkout] organizationId:", organizationId ?? "not found (checkout will proceed without)");
+
+    // ── 4. Stripe Checkout Session ─────────────────────────────────────────
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${siteUrl}/dashboard`,
-      cancel_url: `${siteUrl}/onboarding/plan`,
-      // Used by stripe-webhook to link subscription → user_profile
+      success_url: `${SITE_URL}/dashboard`,
+      cancel_url: `${SITE_URL}/onboarding/plan`,
       client_reference_id: user.id,
-      // Pre-fill email for better UX
       ...(user.email ? { customer_email: user.email } : {}),
-      // Used by stripe-webhook to upsert subscription on the right org
-      ...(organizationId
-        ? { metadata: { organization_id: organizationId } }
-        : {}),
+      ...(organizationId ? { metadata: { organization_id: organizationId } } : {}),
     };
 
-    // ── 5. Create session & return URL ─────────────────────────────────────
+    console.log("[create-checkout] Creating Stripe session...");
     const session = await stripe.checkout.sessions.create(sessionParams);
+    console.log("[create-checkout] Session created:", session.id);
 
     return json({ url: session.url });
+
   } catch (err) {
-    console.error("create-checkout error:", err);
-    return json(
-      { error: err instanceof Error ? err.message : "Internal error" },
-      500
-    );
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[create-checkout] Unhandled error:", message);
+    return json({ error: message }, 500);
   }
 });

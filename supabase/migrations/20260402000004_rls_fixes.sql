@@ -31,39 +31,40 @@ CREATE POLICY "match_stats_coach_write" ON match_stats
     )
   );
 
--- ── 3. teams : INSERT pour les membres d'une organisation ────────────────────
--- Permet à un user de créer une équipe dans l'org à laquelle il est rattaché
--- (onboarding/team + ajout d'équipes secondaires)
+-- ── 3. teams : INSERT pour l'owner de l'organisation ────────────────────────
+-- Vérifie que l'user a revendiqué l'org (organizations.created_by = auth.uid()).
+-- N'utilise pas user_profiles.organization_id (colonne ajoutée par schema patch
+-- 20260401000001 — peut ne pas exister si la migration n'a pas encore tourné).
 
 CREATE POLICY "teams_org_member_insert" ON teams
   FOR INSERT WITH CHECK (
-    organization_id IN (
-      SELECT organization_id
-      FROM user_profiles
-      WHERE id = auth.uid()
-        AND organization_id IS NOT NULL
+    EXISTS (
+      SELECT 1 FROM organizations o
+      WHERE o.id = organization_id        -- colonne de la new row (teams)
+        AND o.created_by = auth.uid()
     )
   );
 
 -- ── 4. players : coaches peuvent ajouter/supprimer des joueurs ───────────────
+-- La table players n'a pas de colonne organization_id ni team_id.
+-- Le lien équipe↔joueur passe par team_members.
+-- On vérifie simplement que l'user est coach d'au moins une équipe.
 
--- INSERT : un coach peut ajouter un joueur à son organisation
 CREATE POLICY "players_coach_insert" ON players
   FOR INSERT WITH CHECK (
-    organization_id IN (
-      SELECT t.organization_id
-      FROM teams t
-      WHERE is_team_coach(t.id)
+    EXISTS (
+      SELECT 1 FROM team_members
+      WHERE user_id = auth.uid()
+        AND role = 'coach'
     )
   );
 
--- DELETE : même scope
 CREATE POLICY "players_coach_delete" ON players
   FOR DELETE USING (
-    organization_id IN (
-      SELECT t.organization_id
-      FROM teams t
-      WHERE is_team_coach(t.id)
+    EXISTS (
+      SELECT 1 FROM team_members
+      WHERE user_id = auth.uid()
+        AND role = 'coach'
     )
   );
 

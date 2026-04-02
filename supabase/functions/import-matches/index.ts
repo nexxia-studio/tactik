@@ -62,8 +62,13 @@ async function updateCache(endpoint: string, payload: unknown, ttlMinutes: numbe
 
 async function fetchCompetition(endpoint: string): Promise<any> {
   const res = await fetch(endpoint, { headers: { 'X-Api-Key': API_KEY } })
-  if (!res.ok) throw new Error(`VIB API ${res.status} — ${endpoint}`)
-  return res.json()
+  if (!res.ok) throw new Error(`VIB API HTTP ${res.status} — ${endpoint}`)
+  const json = await res.json()
+  // VIB returns {"401": "..."} with HTTP 200 when the API key is missing/invalid
+  if (json?.['401'] !== undefined || json?.['403'] !== undefined) {
+    throw new Error(`VIB API auth error (key missing or invalid): ${json['401'] ?? json['403']}`)
+  }
+  return json
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

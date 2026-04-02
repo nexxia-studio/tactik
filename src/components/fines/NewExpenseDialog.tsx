@@ -4,10 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import type { TreasuryExpense } from "@/data/mockFines";
 
 interface Props {
-  onAdd: (expense: Omit<TreasuryExpense, "id">) => void;
+  onAdd: (data: { label: string; amount: number; spent_at: string }) => void;
   trigger?: React.ReactNode;
 }
 
@@ -19,7 +18,7 @@ export default function NewExpenseDialog({ onAdd, trigger }: Props) {
 
   const handleSubmit = () => {
     if (!label.trim() || !amount) return;
-    onAdd({ label: label.trim(), amount: parseFloat(amount), date, created_by: "Marc Lecomte" });
+    onAdd({ label: label.trim(), amount: parseFloat(amount), spent_at: `${date}T00:00:00` });
     setOpen(false);
     setLabel("");
     setAmount("");

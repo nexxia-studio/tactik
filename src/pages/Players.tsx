@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Plus, Users } from "lucide-react";
-import { usePlayers, useTeams, useAddPlayer, useUpdatePlayer, useDeletePlayer } from "@/hooks/usePlayers";
+import { usePlayers, useAddPlayer, useUpdatePlayer, useDeletePlayer } from "@/hooks/usePlayers";
+import { useActiveTeam } from "@/contexts/TeamContext";
 import type { Player } from "@/hooks/usePlayers";
 import { PlayerFilters } from "@/components/players/PlayerFilters";
 import { PlayerCard } from "@/components/players/PlayerCard";
@@ -10,8 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Players() {
   const { toast } = useToast();
-  const { data: teams, isLoading: teamsLoading } = useTeams();
-  const selectedTeamId = teams?.[0]?.id as string | undefined;
+  const { activeTeamId: selectedTeamId, teamsLoading } = useActiveTeam();
   const { data: players, isLoading: playersLoading } = usePlayers(selectedTeamId);
 
   const [search, setSearch] = useState("");

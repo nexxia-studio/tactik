@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import type { Training } from "@/data/mockTrainings";
+import type { Training } from "@/hooks/useTrainings";
 
 const DAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const MONTHS_FR = [

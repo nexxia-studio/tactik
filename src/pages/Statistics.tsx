@@ -1,11 +1,11 @@
-import { useTeams, usePlayers } from "@/hooks/usePlayers";
+import { usePlayers } from "@/hooks/usePlayers";
 import { useTeamStats } from "@/hooks/useTeamStats";
+import { useActiveTeam } from "@/contexts/TeamContext";
 import { TeamStatsOverview } from "@/components/stats/TeamStatsOverview";
 import { PlayerStatsTable } from "@/components/stats/PlayerStatsTable";
 
 export default function Statistics() {
-  const { data: teams } = useTeams();
-  const teamId = teams?.[0]?.id as string | undefined;
+  const { activeTeamId: teamId } = useActiveTeam();
   const { data: players, isLoading: playersLoading } = usePlayers(teamId);
   const { data: teamStats, isLoading: statsLoading } = useTeamStats(teamId);
 

@@ -5,10 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Plus } from "lucide-react";
-import type { FineRule } from "@/data/mockFines";
-
 interface Props {
-  onAdd: (rule: Omit<FineRule, "id">) => void;
+  onAdd: (rule: { label: string; amount: number; is_active: boolean }) => void;
   trigger?: React.ReactNode;
 }
 

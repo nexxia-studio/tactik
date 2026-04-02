@@ -1,6 +1,6 @@
 import { Calendar, Dumbbell, TrendingUp, Users, Wallet, ChevronRight } from "lucide-react";
-import { useTeams } from "@/hooks/usePlayers";
 import { useDashboard } from "@/hooks/useDashboard";
+import { useActiveTeam } from "@/contexts/TeamContext";
 import type { DashboardMatch } from "@/hooks/useDashboard";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -83,8 +83,7 @@ function StatCard({
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { data: teams } = useTeams();
-  const teamId = teams?.[0]?.id as string | undefined;
+  const { activeTeamId: teamId } = useActiveTeam();
   const { data, isLoading } = useDashboard(teamId);
 
   // Stat card values

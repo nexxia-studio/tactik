@@ -18,6 +18,15 @@ ALTER TABLE organizations
 ALTER TABLE teams
   ALTER COLUMN season_id DROP NOT NULL;
 
+-- ── trainings: season_id optional (team may have no season assigned) ─────────
+ALTER TABLE trainings ALTER COLUMN season_id DROP NOT NULL;
+
+-- ── matches: season_id optional ───────────────────────────────────────────────
+ALTER TABLE matches ALTER COLUMN season_id DROP NOT NULL;
+
+-- ── team_treasury: goal_amount for cagnotte objective feature ─────────────────
+ALTER TABLE team_treasury ADD COLUMN IF NOT EXISTS goal_amount numeric(10,2);
+
 -- ── RLS: user can read other profiles of teammates ──────────────────────────
 -- (needed for displaying team roster with user data)
 CREATE POLICY "user_profiles_teammates_read" ON user_profiles

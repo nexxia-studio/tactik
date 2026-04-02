@@ -6,20 +6,13 @@ export interface CompositionMatch {
   date: string;
   is_home: boolean;
   played: boolean;
-  type: "championship" | "friendly";
+  type: "championship" | "friendly" | "cup";
 }
-
-export const MOCK_COMPOSITION_MATCHES: CompositionMatch[] = [
-  { id: "cm1", opponent: "FC Battice", date: "2025-04-06T15:00:00", is_home: true, played: false, type: "championship" },
-  { id: "cm2", opponent: "US Thimister", date: "2025-04-13T15:00:00", is_home: false, played: false, type: "championship" },
-  { id: "cm3", opponent: "RFC Stavelot", date: "2025-01-25T15:00:00", is_home: true, played: true, type: "championship" },
-  { id: "cm4", opponent: "US Malmedy", date: "2025-01-18T14:30:00", is_home: false, played: true, type: "championship" },
-  { id: "cm5", opponent: "FC Eupen B", date: "2025-04-20T14:00:00", is_home: true, played: false, type: "friendly" },
-];
 
 interface Props {
   selectedMatchId: string | null;
   onSelect: (matchId: string) => void;
+  matches: CompositionMatch[];
 }
 
 function formatDate(dateStr: string) {
@@ -27,9 +20,9 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString("fr-BE", { day: "2-digit", month: "2-digit" });
 }
 
-export function MatchSelector({ selectedMatchId, onSelect }: Props) {
-  const upcoming = MOCK_COMPOSITION_MATCHES.filter((m) => !m.played);
-  const past = MOCK_COMPOSITION_MATCHES.filter((m) => m.played);
+export function MatchSelector({ selectedMatchId, onSelect, matches }: Props) {
+  const upcoming = matches.filter((m) => !m.played);
+  const past = matches.filter((m) => m.played);
 
   return (
     <Select value={selectedMatchId ?? ""} onValueChange={onSelect}>
@@ -60,6 +53,11 @@ export function MatchSelector({ selectedMatchId, onSelect }: Props) {
               </SelectItem>
             ))}
           </SelectGroup>
+        )}
+        {matches.length === 0 && (
+          <SelectItem value="" disabled className="font-ui text-t-muted text-[var(--text-body)]">
+            Aucun match planifié
+          </SelectItem>
         )}
       </SelectContent>
     </Select>

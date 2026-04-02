@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
+import { TeamSelector } from "@/components/TeamSelector";
 import logoDark from "@/assets/tactik-symbol-dark.svg";
 import logoLight from "@/assets/tactik-symbol-light.svg";
 
@@ -86,6 +87,9 @@ export function Sidebar() {
           TACTIK
         </span>
       </div>
+
+      {/* Team selector */}
+      <TeamSelector variant="sidebar" />
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 space-y-1">

@@ -3,11 +3,15 @@ import { List, PieChart, Trash2, Check, Plus, Pencil } from "lucide-react";
 import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useActiveTeam } from "@/contexts/TeamContext";
+import { usePlayers } from "@/hooks/usePlayers";
 import {
-  MOCK_FINES, MOCK_FINE_RULES, MOCK_EXPENSES, MOCK_TREASURY,
-  FINE_PLAYERS,
-  type Fine, type FineRule, type TreasuryExpense, type Treasury,
-} from "@/data/mockFines";
+  useFines, useFineRules, useTreasury, useTreasuryExpenses,
+  useCreateFine, useMarkFinePaid, useDeleteFine,
+  useCreateFineRule, useToggleFineRuleActive, useDeleteFineRule,
+  useCreateExpense, useDeleteExpense, useUpsertTreasuryGoal,
+} from "@/hooks/useFines";
+import { useToast } from "@/hooks/use-toast";
 import NewFineDialog from "@/components/fines/NewFineDialog";
 import NewRuleDialog from "@/components/fines/NewRuleDialog";
 import NewExpenseDialog from "@/components/fines/NewExpenseDialog";
@@ -22,28 +26,45 @@ type StatusFilter = "all" | "paid" | "unpaid";
 type PlayerView = "list" | "chart";
 
 export default function FinesPage() {
-  const [fines, setFines] = useState<Fine[]>(MOCK_FINES);
-  const [rules, setRules] = useState<FineRule[]>(MOCK_FINE_RULES);
-  const [expenses, setExpenses] = useState<TreasuryExpense[]>(MOCK_EXPENSES);
-  const [treasury, setTreasury] = useState<Treasury>(MOCK_TREASURY);
+  const { toast } = useToast();
+  const { activeTeamId: teamId } = useActiveTeam();
+
+  const { data: rules = [] } = useFineRules(teamId);
+  const { data: fines = [], isLoading: finesLoading } = useFines(teamId);
+  const { data: treasury } = useTreasury(teamId);
+  const { data: expenses = [] } = useTreasuryExpenses(teamId);
+  const { data: players = [] } = usePlayers(teamId);
+
+  const createFine = useCreateFine(teamId);
+  const markFinePaid = useMarkFinePaid();
+  const deleteFine = useDeleteFine();
+  const createRule = useCreateFineRule(teamId);
+  const toggleRule = useToggleFineRuleActive();
+  const deleteRule = useDeleteFineRule();
+  const createExpense = useCreateExpense(teamId);
+  const deleteExpense = useDeleteExpense();
+  const upsertGoal = useUpsertTreasuryGoal(teamId);
 
   const [playerView, setPlayerView] = useState<PlayerView>("list");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [playerFilter, setPlayerFilter] = useState<string>("all");
   const [ruleFilter, setRuleFilter] = useState<string>("all");
 
-  // Treasury calculations
+  // Derived totals from live data (more accurate than trigger-maintained totals)
   const totalCollected = useMemo(() => fines.filter((f) => f.is_paid).reduce((s, f) => s + f.amount, 0), [fines]);
   const totalDue = useMemo(() => fines.filter((f) => !f.is_paid).reduce((s, f) => s + f.amount, 0), [fines]);
   const totalSpent = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses]);
   const balance = totalCollected - totalSpent;
-  const goalProgress = treasury.goal_amount > 0 ? Math.min(100, Math.round((balance / treasury.goal_amount) * 100)) : 0;
 
-  // Player breakdown
+  const goalAmount = treasury?.goal_amount ?? 0;
+  const goalProgress = goalAmount > 0 ? Math.min(100, Math.round((balance / goalAmount) * 100)) : 0;
+
+  // Player breakdown (keyed by player_id)
   const playerStats = useMemo(() => {
     const map: Record<string, { name: string; count: number; paid: number; unpaid: number; total: number }> = {};
     fines.forEach((f) => {
-      if (!map[f.player_id]) map[f.player_id] = { name: f.player_name, count: 0, paid: 0, unpaid: 0, total: 0 };
+      const name = f.players?.full_name ?? "—";
+      if (!map[f.player_id]) map[f.player_id] = { name, count: 0, paid: 0, unpaid: 0, total: 0 };
       map[f.player_id].count++;
       map[f.player_id].total += f.amount;
       if (f.is_paid) map[f.player_id].paid += f.amount;
@@ -56,6 +77,13 @@ export default function FinesPage() {
 
   const championId = playerStats[0]?.id;
 
+  // Unique players in fines (for filter dropdown)
+  const uniquePlayersInFines = useMemo(() => {
+    const map = new Map<string, string>();
+    fines.forEach((f) => { if (!map.has(f.player_id)) map.set(f.player_id, f.players?.full_name ?? "—"); });
+    return Array.from(map.entries()).map(([id, full_name]) => ({ id, full_name }));
+  }, [fines]);
+
   // Filtered fines
   const filteredFines = useMemo(() => {
     return fines
@@ -63,58 +91,92 @@ export default function FinesPage() {
         if (statusFilter === "paid" && !f.is_paid) return false;
         if (statusFilter === "unpaid" && f.is_paid) return false;
         if (playerFilter !== "all" && f.player_id !== playerFilter) return false;
-        if (ruleFilter !== "all" && f.rule_id !== ruleFilter) return false;
+        if (ruleFilter !== "all" && f.fine_rule_id !== ruleFilter) return false;
         return true;
       })
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
   }, [fines, statusFilter, playerFilter, ruleFilter]);
-
-  const handleAddFine = (fine: Omit<Fine, "id">) => {
-    setFines((prev) => [...prev, { ...fine, id: `f-${Date.now()}` }]);
-  };
-
-  const togglePaid = (id: string) => {
-    setFines((prev) => prev.map((f) => f.id === id ? { ...f, is_paid: !f.is_paid } : f));
-  };
-
-  const deleteFine = (id: string) => {
-    setFines((prev) => prev.filter((f) => f.id !== id));
-  };
-
-  const handleAddRule = (rule: Omit<FineRule, "id">) => {
-    setRules((prev) => [...prev, { ...rule, id: `r-${Date.now()}` }]);
-  };
-
-  const toggleRuleActive = (id: string) => {
-    setRules((prev) => prev.map((r) => r.id === id ? { ...r, is_active: !r.is_active } : r));
-  };
-
-  const deleteRule = (id: string) => {
-    setRules((prev) => prev.filter((r) => r.id !== id));
-  };
-
-  const handleAddExpense = (expense: Omit<TreasuryExpense, "id">) => {
-    setExpenses((prev) => [...prev, { ...expense, id: `e-${Date.now()}` }]);
-  };
-
-  const deleteExpense = (id: string) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
-  };
-
-  const handleUpdateGoal = (goal: string, amount: number) => {
-    setTreasury((prev) => ({ ...prev, season_goal: goal, goal_amount: amount }));
-  };
-
-  const formatEuro = (n: number) => `${n.toFixed(2).replace(".", ",")} €`;
-
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString("fr-BE", { day: "numeric", month: "short", year: "numeric" });
-  };
 
   // Donut data
   const donutData = playerStats.map((p) => ({ name: p.name, value: p.total }));
   const donutTotal = donutData.reduce((s, d) => s + d.value, 0);
+
+  const formatEuro = (n: number) => `${n.toFixed(2).replace(".", ",")} €`;
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("fr-BE", { day: "numeric", month: "short", year: "numeric" });
+
+  // Handlers
+  const handleAddFine = async (data: { player_id: string; fine_rule_id: string | null; reason: string; amount: number }) => {
+    try {
+      await createFine.mutateAsync(data);
+      toast({ title: "Amende ajoutée ✓" });
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleTogglePaid = async (id: string) => {
+    if (!teamId) return;
+    try {
+      await markFinePaid.mutateAsync({ id, teamId });
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteFine = async (id: string) => {
+    if (!teamId) return;
+    try {
+      await deleteFine.mutateAsync({ id, teamId });
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleAddRule = async (data: { label: string; amount: number; is_active: boolean }) => {
+    try {
+      await createRule.mutateAsync(data);
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleToggleRuleActive = async (id: string, current: boolean) => {
+    if (!teamId) return;
+    await toggleRule.mutateAsync({ id, is_active: !current, teamId });
+  };
+
+  const handleDeleteRule = async (id: string) => {
+    if (!teamId) return;
+    await deleteRule.mutateAsync({ id, teamId });
+  };
+
+  const handleAddExpense = async (data: { label: string; amount: number; spent_at: string }) => {
+    try {
+      await createExpense.mutateAsync(data);
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    if (!teamId) return;
+    await deleteExpense.mutateAsync({ id, teamId });
+  };
+
+  const handleUpdateGoal = async (goal: string, amount: number) => {
+    try {
+      await upsertGoal.mutateAsync({ season_goal: goal, goal_amount: amount });
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
+  };
+
+  // Player list for NewFineDialog (from usePlayers, not fines history)
+  const playerOptions = useMemo(() =>
+    players.map((p) => ({ id: p.id, full_name: p.full_name, shirt_number: p.shirt_number ?? null })),
+    [players]
+  );
 
   return (
     <div className="space-y-6 pb-24 lg:pb-0">
@@ -125,10 +187,10 @@ export default function FinesPage() {
             AMENDES
           </h1>
           <p className="text-t-secondary font-ui text-[var(--text-small)] mt-2 italic">
-            Saison 2024-2025
+            {fines.length} amende{fines.length !== 1 ? "s" : ""} au total
           </p>
         </div>
-        <NewFineDialog rules={rules} onAdd={handleAddFine} />
+        <NewFineDialog players={playerOptions} rules={rules} onAdd={handleAddFine} />
       </div>
 
       {/* Section 1 — Dashboard Cagnotte */}
@@ -168,21 +230,23 @@ export default function FinesPage() {
           {/* Col 3 — Objectif */}
           <div className="space-y-2 md:border-l md:border-b-subtle md:pl-6">
             <p className="font-ui text-[11px] text-t-muted uppercase tracking-wider">Objectif</p>
-            <p className="font-ui text-[14px] text-t-primary">{treasury.season_goal}</p>
-            <div className="space-y-1">
-              <div className="h-2 w-full rounded-full bg-bg-surface-2 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{ width: `${goalProgress}%`, backgroundColor: "var(--color-primary)" }}
-                />
+            <p className="font-ui text-[14px] text-t-primary">{treasury?.season_goal ?? "—"}</p>
+            {goalAmount > 0 && (
+              <div className="space-y-1">
+                <div className="h-2 w-full rounded-full bg-bg-surface-2 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{ width: `${goalProgress}%`, backgroundColor: "var(--color-primary)" }}
+                  />
+                </div>
+                <p className="font-ui text-[11px] text-t-muted">
+                  {formatEuro(balance)} / {formatEuro(goalAmount)} — {goalProgress}%
+                </p>
               </div>
-              <p className="font-ui text-[11px] text-t-muted">
-                {formatEuro(balance)} / {formatEuro(treasury.goal_amount)} — {goalProgress}%
-              </p>
-            </div>
+            )}
             <EditGoalDialog
-              currentGoal={treasury.season_goal}
-              currentAmount={treasury.goal_amount}
+              currentGoal={treasury?.season_goal ?? ""}
+              currentAmount={treasury?.goal_amount ?? 0}
               onSave={handleUpdateGoal}
             />
           </div>
@@ -248,6 +312,7 @@ export default function FinesPage() {
                       <td className="px-4 py-3 font-display text-[14px] text-t-primary">{formatEuro(p.total)}</td>
                       <td className="px-4 py-3">
                         <NewFineDialog
+                          players={playerOptions}
                           rules={rules}
                           onAdd={handleAddFine}
                           trigger={
@@ -279,15 +344,7 @@ export default function FinesPage() {
               <div className="w-[200px] h-[200px] relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <RePieChart>
-                    <Pie
-                      data={donutData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={90}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
+                    <Pie data={donutData} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2} dataKey="value">
                       {donutData.map((_, i) => (
                         <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
                       ))}
@@ -330,8 +387,8 @@ export default function FinesPage() {
             </SelectTrigger>
             <SelectContent className="bg-bg-surface-1 border-b-subtle">
               <SelectItem value="all" className="font-ui text-[12px]">Tous les joueurs</SelectItem>
-              {FINE_PLAYERS.map((p) => (
-                <SelectItem key={p.id} value={p.id} className="font-ui text-[12px]">{p.name}</SelectItem>
+              {uniquePlayersInFines.map((p) => (
+                <SelectItem key={p.id} value={p.id} className="font-ui text-[12px]">{p.full_name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -371,19 +428,23 @@ export default function FinesPage() {
 
         {/* Fine cards */}
         <div className="space-y-2">
-          {filteredFines.length === 0 ? (
+          {finesLoading ? (
+            <div className="bg-bg-surface-1 border border-b-subtle rounded-xl p-4 h-[60px] animate-pulse" />
+          ) : filteredFines.length === 0 ? (
             <p className="font-ui text-[12px] text-t-muted text-center py-8 italic">Aucune amende trouvée</p>
           ) : (
             filteredFines.map((fine) => (
               <div key={fine.id} className="bg-bg-surface-1 border border-b-subtle rounded-xl px-4 py-3 flex items-center gap-3">
                 <span className="text-[16px] shrink-0">{fine.is_paid ? "✅" : "⏳"}</span>
                 <div className="w-7 h-7 rounded-full bg-bg-surface-2 flex items-center justify-center shrink-0">
-                  <span className="font-ui text-[10px] text-t-muted">{fine.player_name.split(" ").map((n) => n[0]).join("")}</span>
+                  <span className="font-ui text-[10px] text-t-muted">
+                    {(fine.players?.full_name ?? "?").split(" ").map((n) => n[0]).join("")}
+                  </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-ui text-[13px] text-t-primary truncate">{fine.player_name}</p>
-                  <p className="font-ui text-[11px] text-t-secondary">{fine.rule_label}</p>
-                  <p className="font-ui text-[10px] text-t-muted italic">{formatDate(fine.date)} — Par {fine.created_by}</p>
+                  <p className="font-ui text-[13px] text-t-primary truncate">{fine.players?.full_name ?? "—"}</p>
+                  <p className="font-ui text-[11px] text-t-secondary">{fine.fine_rules?.label ?? fine.reason}</p>
+                  <p className="font-ui text-[10px] text-t-muted italic">{formatDate(fine.created_at)}</p>
                 </div>
                 <p className="font-display text-[16px] shrink-0" style={{ color: fine.is_paid ? "var(--color-primary)" : "var(--color-danger)" }}>
                   {formatEuro(fine.amount)}
@@ -391,7 +452,7 @@ export default function FinesPage() {
                 <div className="flex gap-1 shrink-0">
                   {!fine.is_paid && (
                     <button
-                      onClick={() => togglePaid(fine.id)}
+                      onClick={() => handleTogglePaid(fine.id)}
                       className="w-7 h-7 rounded-lg bg-bg-surface-2 border border-b-subtle flex items-center justify-center hover:bg-bg-surface-3 transition-all cursor-pointer"
                       title="Marquer payé"
                     >
@@ -399,7 +460,7 @@ export default function FinesPage() {
                     </button>
                   )}
                   <button
-                    onClick={() => deleteFine(fine.id)}
+                    onClick={() => handleDeleteFine(fine.id)}
                     className="w-7 h-7 rounded-lg bg-bg-surface-2 border border-b-subtle flex items-center justify-center hover:bg-bg-surface-3 transition-all cursor-pointer"
                     title="Supprimer"
                   >
@@ -434,14 +495,14 @@ export default function FinesPage() {
                     {rule.is_active ? "Actif" : "Inactif"}
                   </span>
                   <button
-                    onClick={() => toggleRuleActive(rule.id)}
+                    onClick={() => handleToggleRuleActive(rule.id, rule.is_active)}
                     className="w-7 h-7 rounded-lg bg-bg-surface-1 border border-b-subtle flex items-center justify-center hover:bg-bg-surface-3 transition-all cursor-pointer"
                     title="Modifier statut"
                   >
                     <Pencil className="h-3 w-3 text-t-muted" />
                   </button>
                   <button
-                    onClick={() => deleteRule(rule.id)}
+                    onClick={() => handleDeleteRule(rule.id)}
                     className="w-7 h-7 rounded-lg bg-bg-surface-1 border border-b-subtle flex items-center justify-center hover:bg-bg-surface-3 transition-all cursor-pointer"
                     title="Supprimer"
                   >
@@ -472,13 +533,13 @@ export default function FinesPage() {
                 <div key={exp.id} className="flex items-center gap-3 bg-bg-surface-2 rounded-lg px-3 py-2.5">
                   <div className="flex-1 min-w-0">
                     <p className="font-ui text-[13px] text-t-primary">{exp.label}</p>
-                    <p className="font-ui text-[10px] text-t-muted italic">{formatDate(exp.date)} — {exp.created_by}</p>
+                    <p className="font-ui text-[10px] text-t-muted italic">{formatDate(exp.spent_at)}</p>
                   </div>
                   <span className="font-display text-[14px] shrink-0" style={{ color: "var(--color-danger)" }}>
                     {formatEuro(exp.amount)}
                   </span>
                   <button
-                    onClick={() => deleteExpense(exp.id)}
+                    onClick={() => handleDeleteExpense(exp.id)}
                     className="w-7 h-7 rounded-lg bg-bg-surface-1 border border-b-subtle flex items-center justify-center hover:bg-bg-surface-3 transition-all cursor-pointer"
                     title="Supprimer"
                   >

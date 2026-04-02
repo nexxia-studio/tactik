@@ -5,25 +5,30 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
-import { FINE_PLAYERS, MOCK_FINE_RULES, type Fine, type FineRule } from "@/data/mockFines";
+import type { FineRule } from "@/hooks/useFines";
+
+interface Player {
+  id: string;
+  full_name: string;
+  shirt_number: number | null;
+}
 
 interface NewFineDialogProps {
+  players: Player[];
   rules: FineRule[];
-  onAdd: (fine: Omit<Fine, "id">) => void;
+  onAdd: (data: { player_id: string; fine_rule_id: string | null; reason: string; amount: number }) => void;
   trigger?: React.ReactNode;
 }
 
-export default function NewFineDialog({ rules, onAdd, trigger }: NewFineDialogProps) {
+export default function NewFineDialog({ players, rules, onAdd, trigger }: NewFineDialogProps) {
   const [open, setOpen] = useState(false);
   const [playerId, setPlayerId] = useState("");
   const [ruleId, setRuleId] = useState("");
   const [customLabel, setCustomLabel] = useState("");
   const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
   const activeRules = rules.filter((r) => r.is_active);
   const selectedRule = activeRules.find((r) => r.id === ruleId);
-  const player = FINE_PLAYERS.find((p) => p.id === playerId);
 
   const handleRuleChange = (val: string) => {
     setRuleId(val);
@@ -36,24 +41,22 @@ export default function NewFineDialog({ rules, onAdd, trigger }: NewFineDialogPr
   };
 
   const handleSubmit = () => {
-    if (!playerId || !date || !amount) return;
+    if (!playerId || !amount) return;
+    const isCustom = ruleId === "other";
     onAdd({
       player_id: playerId,
-      player_name: player?.name || "",
-      rule_id: ruleId === "other" ? "custom" : ruleId,
-      rule_label: ruleId === "other" ? customLabel : (selectedRule?.label || ""),
+      fine_rule_id: isCustom ? null : (ruleId || null),
+      reason: isCustom ? customLabel : (selectedRule?.label ?? ""),
       amount: parseFloat(amount),
-      date,
-      is_paid: false,
-      created_by: "Marc Lecomte",
     });
     setOpen(false);
     setPlayerId("");
     setRuleId("");
     setCustomLabel("");
     setAmount("");
-    setDate(new Date().toISOString().split("T")[0]);
   };
+
+  const canSubmit = !!playerId && !!amount && (ruleId === "other" ? !!customLabel : !!ruleId);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -79,9 +82,9 @@ export default function NewFineDialog({ rules, onAdd, trigger }: NewFineDialogPr
                 <SelectValue placeholder="Sélectionner un joueur" />
               </SelectTrigger>
               <SelectContent className="bg-bg-surface-1 border-b-subtle">
-                {FINE_PLAYERS.map((p) => (
+                {players.map((p) => (
                   <SelectItem key={p.id} value={p.id} className="font-ui text-[13px]">
-                    #{p.jersey} — {p.name}
+                    {p.shirt_number != null ? `#${p.shirt_number} — ` : ""}{p.full_name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -131,19 +134,9 @@ export default function NewFineDialog({ rules, onAdd, trigger }: NewFineDialogPr
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="font-ui text-[12px] text-t-secondary">Date</Label>
-            <Input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="bg-bg-surface-2 border-b-subtle font-ui text-[13px] text-t-primary w-40"
-            />
-          </div>
-
           <Button
             onClick={handleSubmit}
-            disabled={!playerId || (!ruleId && !customLabel) || !amount}
+            disabled={!canSubmit}
             className="w-full bg-primary text-primary-text font-ui hover:opacity-90"
           >
             Ajouter l'amende

@@ -1,6 +1,9 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { List, CalendarDays } from "lucide-react";
-import { MOCK_TRAININGS, type Training } from "@/data/mockTrainings";
+import { useState } from "react";
+import { useActiveTeam } from "@/contexts/TeamContext";
+import { useTrainings, useCreateTraining } from "@/hooks/useTrainings";
+import { useToast } from "@/hooks/use-toast";
 import TrainingCard from "@/components/trainings/TrainingCard";
 import TrainingCalendarView from "@/components/trainings/TrainingCalendarView";
 import NewSessionDialog from "@/components/trainings/NewSessionDialog";
@@ -8,39 +11,38 @@ import NewSessionDialog from "@/components/trainings/NewSessionDialog";
 type ViewMode = "list" | "calendar";
 
 export default function TrainingsPage() {
-  const [trainings, setTrainings] = useState<Training[]>(MOCK_TRAININGS);
+  const { toast } = useToast();
+  const { activeTeamId: teamId, activeTeam } = useActiveTeam();
+  const { data: trainings = [], isLoading } = useTrainings(teamId);
+  const createTraining = useCreateTraining(teamId, activeTeam?.season_id);
+
   const [view, setView] = useState<ViewMode>("list");
 
   const upcoming = useMemo(
     () => trainings
-      .filter((t) => t.status === "planned")
+      .filter((t) => t.status === "scheduled")
       .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at)),
     [trainings]
   );
 
   const past = useMemo(
     () => trainings
-      .filter((t) => t.status === "completed")
+      .filter((t) => t.status === "completed" || t.status === "cancelled")
       .sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at)),
     [trainings]
   );
 
-  const handleAddSession = (data: { date: string; time: string; location: string; notes: string }) => {
-    const newTraining: Training = {
-      id: `s-${Date.now()}`,
-      scheduled_at: `${data.date}T${data.time}:00`,
-      location: data.location,
-      status: "planned",
-      notes: data.notes || null,
-      phases: [
-        { type: "warmup", duration: 15, drills: [] },
-        { type: "tactical", duration: 25, drills: [] },
-        { type: "technical", duration: 20, drills: [] },
-        { type: "scrimmage", duration: 30, drills: [] },
-      ],
-      attendance: [],
-    };
-    setTrainings((prev) => [...prev, newTraining]);
+  const handleAddSession = async (data: { date: string; time: string; location: string; notes: string }) => {
+    try {
+      await createTraining.mutateAsync({
+        scheduled_at: `${data.date}T${data.time}:00`,
+        location: data.location,
+        notes: data.notes || null,
+      });
+      toast({ title: "Séance créée ✓" });
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
   };
 
   return (
@@ -52,7 +54,7 @@ export default function TrainingsPage() {
             ENTRAÎNEMENTS
           </h1>
           <p className="text-t-secondary font-ui text-[var(--text-small)] mt-2">
-            Saison 2025-2026
+            {trainings.length} séance{trainings.length !== 1 ? "s" : ""} cette saison
           </p>
         </div>
         <NewSessionDialog onAdd={handleAddSession} />
@@ -80,9 +82,14 @@ export default function TrainingsPage() {
       </div>
 
       {/* Content */}
-      {view === "list" ? (
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-bg-surface-1 border border-b-subtle rounded-xl p-4 h-[88px] animate-pulse" />
+          ))}
+        </div>
+      ) : view === "list" ? (
         <div className="space-y-8">
-          {/* Upcoming */}
           {upcoming.length > 0 && (
             <section className="space-y-3">
               <h2 className="font-ui text-[11px] text-t-muted uppercase tracking-wider px-1">
@@ -96,7 +103,6 @@ export default function TrainingsPage() {
             </section>
           )}
 
-          {/* Past */}
           {past.length > 0 && (
             <section className="space-y-3">
               <h2 className="font-ui text-[11px] text-t-muted uppercase tracking-wider px-1">
@@ -108,6 +114,13 @@ export default function TrainingsPage() {
                 ))}
               </div>
             </section>
+          )}
+
+          {trainings.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="font-ui text-[14px] text-t-secondary">Aucune séance planifiée</p>
+              <p className="font-ui text-[12px] text-t-muted mt-1">Crée ta première séance d'entraînement.</p>
+            </div>
           )}
         </div>
       ) : (

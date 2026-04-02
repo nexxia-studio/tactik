@@ -152,7 +152,7 @@ out += [
     "  home_name  text NOT NULL,",
     "  away_name  text NOT NULL,",
     "  match_date timestamptz NOT NULL,",
-    "  status     text NOT NULL,",
+    "  status     match_status NOT NULL,",
     "  score_home int,",
     "  score_away int,",
     "  div_id     text NOT NULL",
@@ -175,7 +175,7 @@ for div_id, d in divisions.items():
         sa = str(m["awayGoals"]) if scored else "NULL"
         match_rows.append(
             f"  ({q(m['home'])}, {q(m['away'])}, {q(m['date'])}::timestamptz, "
-            f"{q(status)}, {sh}, {sa}, {q(div_id)})"
+            f"{q(status)}::match_status, {sh}, {sa}, {q(div_id)})"
         )
 
 out.append(",\n".join(match_rows) + ";")
@@ -191,11 +191,11 @@ out += [
     "  r.away_name,",
     "  r.match_date,",
     "  TRUE,",
-    "  'championship',",
-    "  r.status,",
+    "  'championship'::match_type,",
+    "  r.status::match_status,",
     "  r.score_home,",
     "  r.score_away,",
-    "  'api'",
+    "  'api'::match_source",
     "FROM _vib_matches r",
     "JOIN organizations o ON o.name = r.home_name",
     "JOIN teams t ON t.organization_id = o.id",
@@ -205,7 +205,7 @@ out += [
     "  WHERE m.team_id = t.id",
     "    AND m.match_date = r.match_date",
     "    AND m.opponent   = r.away_name",
-    "    AND m.source     = 'api'",
+    "    AND m.source     = 'api'::match_source",
     ");",
     "",
 ]
@@ -220,11 +220,11 @@ out += [
     "  r.home_name,",
     "  r.match_date,",
     "  FALSE,",
-    "  'championship',",
-    "  r.status,",
+    "  'championship'::match_type,",
+    "  r.status::match_status,",
     "  r.score_home,",
     "  r.score_away,",
-    "  'api'",
+    "  'api'::match_source",
     "FROM _vib_matches r",
     "JOIN organizations o ON o.name = r.away_name",
     "JOIN teams t ON t.organization_id = o.id",
@@ -234,7 +234,7 @@ out += [
     "  WHERE m.team_id = t.id",
     "    AND m.match_date = r.match_date",
     "    AND m.opponent   = r.home_name",
-    "    AND m.source     = 'api'",
+    "    AND m.source     = 'api'::match_source",
     ");",
     "",
     "DROP TABLE _vib_matches;",

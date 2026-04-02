@@ -13,7 +13,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useActiveTeam } from "@/contexts/TeamContext";
-import { useMatches, useCreateMatch, useUpdateMatchScore, useDeleteMatch, type Match } from "@/hooks/useMatches";
+import {
+  useMatchesByDivision,
+  useCreateMatch,
+  useUpdateMatchScore,
+  useDeleteMatch,
+  DIVISIONS,
+  type Match,
+  type DivisionKey,
+} from "@/hooks/useMatches";
 import { useToast } from "@/hooks/use-toast";
 
 type Filter = "all" | "played" | "upcoming";
@@ -46,9 +54,10 @@ function formatTime(iso: string) {
 export default function CalendarPage() {
   const { toast } = useToast();
   const { activeTeamId: teamId, activeTeam } = useActiveTeam();
-  const teamName = activeTeam?.name ?? "Nous";
+  const userTeamName = activeTeam?.name ?? "Nous";
 
-  const { data: matches = [], isLoading } = useMatches(teamId);
+  const [division, setDivision] = useState<DivisionKey>("P1");
+  const { data: matches = [], isLoading } = useMatchesByDivision(division);
   const createMatch = useCreateMatch(teamId);
   const updateScore = useUpdateMatchScore();
   const deleteMatch = useDeleteMatch();
@@ -114,13 +123,25 @@ export default function CalendarPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
+      <div className="space-y-3">
         <h1 className="font-display text-t-primary leading-none" style={{ fontSize: "var(--text-h1)" }}>
           CALENDRIER
         </h1>
-        <p className="text-t-secondary font-ui text-[var(--text-small)] mt-2">
-          {teamName}
-        </p>
+        <div className="flex gap-1.5">
+          {DIVISIONS.map((d) => (
+            <button
+              key={d.key}
+              onClick={() => setDivision(d.key)}
+              className={`px-3 py-1.5 rounded-lg font-ui text-[12px] transition-all cursor-pointer ${
+                division === d.key
+                  ? "bg-primary text-primary-text"
+                  : "bg-bg-surface-1 text-t-secondary border border-b-subtle hover:bg-bg-surface-2"
+              }`}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Next match highlight */}
@@ -131,8 +152,8 @@ export default function CalendarPage() {
           </p>
           <div className="flex items-center justify-between">
             <div className="flex-1 text-right">
-              <p className={`font-display text-[18px] leading-tight ${nextMatch.is_home ? "text-primary" : "text-t-primary"}`}>
-                {nextMatch.is_home ? teamName : nextMatch.opponent}
+              <p className="font-display text-[18px] leading-tight text-primary">
+                {nextMatch.home_team_name ?? userTeamName}
               </p>
             </div>
             <div className="px-6 text-center">
@@ -143,8 +164,8 @@ export default function CalendarPage() {
               </div>
             </div>
             <div className="flex-1 text-left">
-              <p className={`font-display text-[18px] leading-tight ${!nextMatch.is_home ? "text-primary" : "text-t-primary"}`}>
-                {nextMatch.is_home ? nextMatch.opponent : teamName}
+              <p className="font-display text-[18px] leading-tight text-t-primary">
+                {nextMatch.opponent}
               </p>
             </div>
           </div>
@@ -199,8 +220,8 @@ export default function CalendarPage() {
             const played = match.score_home !== null;
             const rs = result ? resultStyles[result] : null;
             const journee = championshipJournee.get(match.id);
-            const homeTeam = match.is_home ? teamName : match.opponent;
-            const awayTeam = match.is_home ? match.opponent : teamName;
+            const homeTeam = match.home_team_name ?? userTeamName;
+            const awayTeam = match.opponent;
 
             return (
               <div
@@ -288,8 +309,8 @@ export default function CalendarPage() {
         <EditScoreDialog
           open={!!editingMatch}
           onOpenChange={(v) => { if (!v) setEditingMatch(null); }}
-          home={editingMatch.is_home ? teamName : editingMatch.opponent}
-          away={editingMatch.is_home ? editingMatch.opponent : teamName}
+          home={editingMatch.home_team_name ?? userTeamName}
+          away={editingMatch.opponent}
           currentHomeScore={editingMatch.score_home}
           currentAwayScore={editingMatch.score_away}
           onSave={handleSaveScore}

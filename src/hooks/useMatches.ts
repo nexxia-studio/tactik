@@ -15,6 +15,8 @@ export interface Match {
   score_away: number | null;
   source: string;
   created_at: string;
+  // Populated only by useMatchesByDivision (join)
+  home_team_name?: string;
 }
 
 export function useMatches(teamId: string | undefined) {
@@ -29,6 +31,59 @@ export function useMatches(teamId: string | undefined) {
         .order("match_date", { ascending: true });
       if (error) throw error;
       return data as Match[];
+    },
+  });
+}
+
+// Division keys as imported by scripts/import_vib.py
+export const DIVISIONS = [
+  { key: "P1",  label: "P1",  filter: "1e provinciale" },
+  { key: "P2C", label: "P2C", filter: "2e provinciale C" },
+  { key: "P3D", label: "P3D", filter: "3e provinciale D" },
+] as const;
+
+export type DivisionKey = (typeof DIVISIONS)[number]["key"];
+
+export function useMatchesByDivision(division: DivisionKey) {
+  const divFilter = DIVISIONS.find((d) => d.key === division)!.filter;
+  return useQuery({
+    queryKey: ["matches", "division", division],
+    queryFn: async () => {
+      // 1. Find all organizations in this division
+      const { data: orgs, error: orgError } = await supabase
+        .from("organizations")
+        .select("id")
+        .ilike("division", `%${divFilter}%`);
+      if (orgError) throw orgError;
+      if (!orgs || orgs.length === 0) return [] as Match[];
+
+      // 2. Find all teams for those organizations
+      const orgIds = orgs.map((o) => o.id);
+      const { data: teams, error: teamsError } = await supabase
+        .from("teams")
+        .select("id")
+        .in("organization_id", orgIds);
+      if (teamsError) throw teamsError;
+      if (!teams || teams.length === 0) return [] as Match[];
+
+      // 3. Fetch home-perspective matches only (deduplicates VIB home+away pairs)
+      //    Join teams → organizations to get the real home team name.
+      const teamIds = teams.map((t) => t.id);
+      const { data, error } = await supabase
+        .from("matches")
+        .select("*, teams(organizations(name))")
+        .in("team_id", teamIds)
+        .eq("is_home", true)
+        .order("match_date", { ascending: true });
+      if (error) throw error;
+
+      return (data ?? []).map((m) => ({
+        ...m,
+        home_team_name:
+          (m.teams as { organizations: { name: string } | null } | null)
+            ?.organizations?.name ?? undefined,
+        teams: undefined,
+      })) as Match[];
     },
   });
 }

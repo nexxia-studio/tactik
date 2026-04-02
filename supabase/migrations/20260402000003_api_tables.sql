@@ -27,19 +27,19 @@ ALTER TABLE matches
 INSERT INTO api_competitions (name, api_endpoint, sport_slug, division) VALUES
   (
     '1e provinciale Luik',
-    'https://api.voetbalinbelgie.be/competitions/471/',
+    'https://api.voetbalinbelgie.be/competities/2025-2026/luik/mannen/1/',
     'football',
     '1e provinciale, Luik, Mannen'
   ),
   (
     '2e provinciale C Luik',
-    'https://api.voetbalinbelgie.be/competitions/474/',
+    'https://api.voetbalinbelgie.be/competities/2025-2026/luik/mannen/2c/',
     'football',
     '2e provinciale C, Luik, Mannen'
   ),
   (
     '3e provinciale D Luik',
-    'https://api.voetbalinbelgie.be/competitions/478/',
+    'https://api.voetbalinbelgie.be/competities/2025-2026/luik/mannen/3d/',
     'football',
     '3e provinciale D, Luik, Mannen'
   );

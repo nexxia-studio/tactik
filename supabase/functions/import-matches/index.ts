@@ -1,8 +1,9 @@
 /**
  * import-matches — Edge function VoetbalInBelgië → Tactik
  *
- * Lit les compétitions depuis api_competitions, appelle l'API VIB pour chacune,
- * upsert orgs/teams/matches, met à jour api_cache, puis déclenche compute-badges.
+ * Modes :
+ *   [LIVE] VOETBALINBELGIE_API_KEY présente → appelle l'API VIB réelle
+ *   [STUB] clé absente/vide               → utilise les données JSON embarquées
  *
  * TTL adaptatif (CET) :
  *   - semaine        → 240 min (4h)
@@ -11,13 +12,15 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { STUB_COMPETITIONS } from './stub-data.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
-const API_KEY      = Deno.env.get('VOETBALINBELGIE_API_KEY') ?? ''
+const API_KEY       = Deno.env.get('VOETBALINBELGIE_API_KEY') ?? ''
+const STUB_MODE     = API_KEY === ''
 const VIB_LOGO_BASE = 'https://www.voetbalinbelgie.be/images/clubs/'
 
 // ── TTL ───────────────────────────────────────────────────────────────────────
@@ -58,9 +61,34 @@ async function updateCache(endpoint: string, payload: unknown, ttlMinutes: numbe
     )
 }
 
-// ── API call ──────────────────────────────────────────────────────────────────
+// ── API / Stub ────────────────────────────────────────────────────────────────
 
-async function fetchCompetition(endpoint: string): Promise<any> {
+/** Returns { competition: VibCompetition } — from API in LIVE mode, from stub in STUB mode. */
+async function fetchCompetition(endpoint: string, division?: string): Promise<any> {
+  if (STUB_MODE) {
+    // Primary: extract last URL segment (e.g. ".../471/" → "471", ".../1/" → "1")
+    const segment = endpoint.replace(/\/$/, '').split('/').pop() ?? ''
+
+    // Map VIB segment patterns → stub competition id
+    // Handles both /competitions/471/ and /competities/…/1/ URL formats
+    const SEGMENT_MAP: Record<string, string> = {
+      '471': '471', '474': '474', '478': '478', // canonical ids
+      '1':   '471', '2c': '474', '3d':  '478',  // alternative URL format
+    }
+    let data = STUB_COMPETITIONS[SEGMENT_MAP[segment] ?? segment]
+
+    // Fallback: match by division string
+    if (!data && division) {
+      const d = division.toLowerCase()
+      if (d.includes('3e provinciale d'))      data = STUB_COMPETITIONS['478']
+      else if (d.includes('2e provinciale c')) data = STUB_COMPETITIONS['474']
+      else if (d.includes('1e provinciale'))   data = STUB_COMPETITIONS['471']
+    }
+
+    if (!data) throw new Error(`[STUB] No stub data for endpoint "${endpoint}" (segment="${segment}")`)
+    return { competition: data }
+  }
+
   const res = await fetch(endpoint, { headers: { 'X-Api-Key': API_KEY } })
   if (!res.ok) throw new Error(`VIB API HTTP ${res.status} — ${endpoint}`)
   const json = await res.json()
@@ -94,6 +122,9 @@ function goals(raw: string, value: number | null): number | null {
 
 Deno.serve(async () => {
   const ttl = getTTLMinutes()
+  const mode = STUB_MODE ? 'STUB' : 'LIVE'
+  console.log(`[import-matches] mode=${mode} ttl=${ttl}min`)
+
   const summary: unknown[] = []
 
   try {
@@ -121,7 +152,7 @@ Deno.serve(async () => {
           continue
         }
 
-        const raw = await fetchCompetition(endpoint)
+        const raw = await fetchCompetition(endpoint, comp.division ?? '')
         const c = raw?.competition
         if (!c?.meta) throw new Error('Unexpected API response shape')
 
@@ -265,6 +296,7 @@ Deno.serve(async () => {
         summary.push({
           name:     comp.name,
           status:   'ok',
+          mode,
           ttl,
           imported,
           skipped,
@@ -279,7 +311,7 @@ Deno.serve(async () => {
     }
 
     return new Response(
-      JSON.stringify({ ok: true, ttl, summary }),
+      JSON.stringify({ ok: true, mode, ttl, summary }),
       { headers: { 'Content-Type': 'application/json' } },
     )
 

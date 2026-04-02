@@ -20,6 +20,12 @@ function json(data: unknown, status = 200) {
 }
 
 Deno.serve(async (req) => {
+  // ── Entry log (must appear if handler is reached) ──────────────────────────
+  console.log("[create-checkout] handler reached, method:", req.method);
+  console.log("[create-checkout] STRIPE_SECRET_KEY set:", !!STRIPE_SECRET_KEY);
+  console.log("[create-checkout] SUPABASE_URL set:", !!SUPABASE_URL);
+  console.log("[create-checkout] SITE_URL:", SITE_URL);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS });
   }

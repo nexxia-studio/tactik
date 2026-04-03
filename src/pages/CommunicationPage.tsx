@@ -1,15 +1,22 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Copy, ExternalLink, Check, Users, Send } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import {
-  MOCK_CONVOCATION_MATCHES, MOCK_CONVOCATION_PLAYERS, MOCK_PAST_CONVOCATIONS,
-  type ConvocationMatch, type ConvocationPlayer, type SelectionStatus,
-} from "@/data/mockCommunication";
+import { MOCK_PAST_CONVOCATIONS, type SelectionStatus } from "@/data/mockCommunication";
 import FUTCompositionLink from "@/components/communication/FUTCompositionLink";
+import { useActiveTeam } from "@/contexts/TeamContext";
+import { usePlayers } from "@/hooks/usePlayers";
+import { useMatchesByOrg, type Match } from "@/hooks/useMatches";
+import { useActiveUnavailabilities } from "@/hooks/usePlayerUnavailabilities";
+
+const MATCH_TYPE_LABELS: Record<string, string> = {
+  championship: "Championnat",
+  friendly:     "Amical",
+  cup:          "Coupe",
+};
 
 function formatMatchDate(iso: string) {
   const d = new Date(iso);
@@ -26,8 +33,53 @@ function formatDate(iso: string) {
   return d.toLocaleDateString("fr-BE", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function matchSelectLabel(m: Match) {
+  const homeAway = m.is_home ? "vs" : "@";
+  const type = MATCH_TYPE_LABELS[m.type] ?? m.type;
+  const date = new Date(m.match_date).toLocaleDateString("fr-BE", { day: "numeric", month: "short" });
+  return `${date} — ${homeAway} ${m.opponent} · ${type}`;
+}
+
 export default function CommunicationPage() {
   const [searchParams] = useSearchParams();
+  const { activeTeamId: teamId, activeTeam } = useActiveTeam();
+  const { data: teamPlayers = [] } = usePlayers(teamId);
+  const { data: allMatches = [] } = useMatchesByOrg(activeTeam?.organization_id);
+
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const { data: activeUnavailabilities = [] } = useActiveUnavailabilities(teamId, today);
+  const unavailableIds = useMemo(
+    () => new Set(activeUnavailabilities.map((u) => u.player_id)),
+    [activeUnavailabilities]
+  );
+
+  // Shape real players for convocation
+  const convocationPlayers = useMemo(() => {
+    return teamPlayers
+      .map((p) => {
+        const parts = p.full_name.trim().split(/\s+/);
+        const last_name = parts.length > 1 ? parts[parts.length - 1] : p.full_name;
+        const first_name = parts.length > 1 ? parts.slice(0, -1).join(" ") : "";
+        return {
+          id: p.id,
+          first_name,
+          last_name,
+          jersey_number: p.shirt_number ?? 0,
+          position: p.position_preferred ?? "",
+          isUnavailable: unavailableIds.has(p.id),
+        };
+      })
+      .sort((a, b) => a.jersey_number - b.jersey_number);
+  }, [teamPlayers, unavailableIds]);
+
+  // Future matches sorted ASC
+  const futureMatches = useMemo(() => {
+    const now = new Date().toISOString();
+    return allMatches
+      .filter((m) => m.match_date > now && m.status !== "cancelled")
+      .sort((a, b) => a.match_date.localeCompare(b.match_date));
+  }, [allMatches]);
+
   const [matchId, setMatchId] = useState<string>("");
   const [selections, setSelections] = useState<Record<string, SelectionStatus>>({});
   const [message, setMessage] = useState("");
@@ -35,20 +87,37 @@ export default function CommunicationPage() {
   const [importedCompId, setImportedCompId] = useState<string>("");
   const [importedSnapshot, setImportedSnapshot] = useState<string>("");
 
+  // Auto-select next match
+  const autoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (autoSelectedRef.current || matchId || futureMatches.length === 0) return;
+    setMatchId(futureMatches[0].id);
+    autoSelectedRef.current = true;
+  }, [futureMatches, matchId]);
+
   // Auto-select match from query params (from Composition page)
   useEffect(() => {
     const opponent = searchParams.get("opponent");
     if (opponent && !matchId) {
-      const found = MOCK_CONVOCATION_MATCHES.find((m) => m.opponent === opponent);
+      const found = futureMatches.find((m) => m.opponent === opponent);
       if (found) setMatchId(found.id);
     }
-  }, [searchParams, matchId]);
+  }, [searchParams, futureMatches, matchId]);
 
-  const match = MOCK_CONVOCATION_MATCHES.find((m) => m.id === matchId);
+  const match = futureMatches.find((m) => m.id === matchId);
 
-  const starters = useMemo(() => MOCK_CONVOCATION_PLAYERS.filter((p) => selections[p.id] === "starter"), [selections]);
-  const subs = useMemo(() => MOCK_CONVOCATION_PLAYERS.filter((p) => selections[p.id] === "sub"), [selections]);
-  const notSelected = useMemo(() => MOCK_CONVOCATION_PLAYERS.filter((p) => !selections[p.id]), [selections]);
+  const starters = useMemo(
+    () => convocationPlayers.filter((p) => selections[p.id] === "starter"),
+    [convocationPlayers, selections]
+  );
+  const subs = useMemo(
+    () => convocationPlayers.filter((p) => selections[p.id] === "sub"),
+    [convocationPlayers, selections]
+  );
+  const notSelected = useMemo(
+    () => convocationPlayers.filter((p) => !selections[p.id]),
+    [convocationPlayers, selections]
+  );
 
   const wasModified = useMemo(() => {
     if (!importedCompId || !importedSnapshot) return false;
@@ -73,7 +142,7 @@ export default function CommunicationPage() {
 
   const selectAll = () => {
     const newSel: Record<string, SelectionStatus> = {};
-    MOCK_CONVOCATION_PLAYERS.forEach((p, i) => {
+    convocationPlayers.forEach((p, i) => {
       newSel[p.id] = i < 11 ? "starter" : "sub";
     });
     setSelections(newSel);
@@ -82,21 +151,21 @@ export default function CommunicationPage() {
   const deselectAll = () => setSelections({});
 
   // Build WhatsApp message
-  const clubName = match?.is_home ? "RFC XHOFFRAIX" : "RFC XHOFFRAIX";
+  const clubName = activeTeam?.name?.toUpperCase() ?? "MON ÉQUIPE";
   const whatsappText = useMemo(() => {
     if (!match) return "";
     const lines: string[] = [];
     lines.push(`🟢 CONVOCATION — ${clubName}`);
     lines.push("");
-    lines.push(`📅 ${formatMatchDate(match.date)} — ${formatMatchTime(match.date)}`);
+    lines.push(`📅 ${formatMatchDate(match.match_date)} — ${formatMatchTime(match.match_date)}`);
     lines.push(`🆚 vs ${match.opponent}`);
-    lines.push(`📍 ${match.location}`);
+    if (match.location) lines.push(`📍 ${match.location}`);
     lines.push("");
 
     if (starters.length > 0) {
       lines.push(`✅ TITULAIRES (${starters.length}) :`);
       starters.forEach((p, i) => {
-        lines.push(`${i + 1}. ${p.first_name[0]}. ${p.last_name} (${p.position})`);
+        lines.push(`${i + 1}. ${p.first_name[0]}. ${p.last_name}${p.position ? ` (${p.position})` : ""}`);
       });
       lines.push("");
     }
@@ -104,7 +173,7 @@ export default function CommunicationPage() {
     if (subs.length > 0) {
       lines.push(`🔄 REMPLAÇANTS (${subs.length}) :`);
       subs.forEach((p, i) => {
-        lines.push(`${starters.length + i + 1}. ${p.first_name[0]}. ${p.last_name} (${p.position})`);
+        lines.push(`${starters.length + i + 1}. ${p.first_name[0]}. ${p.last_name}${p.position ? ` (${p.position})` : ""}`);
       });
       lines.push("");
     }
@@ -113,8 +182,6 @@ export default function CommunicationPage() {
       lines.push(`💬 "${message.trim()}"`);
       lines.push("");
     }
-
-
 
     lines.push("⚠️ Confirmer ta présence avant vendredi 18h00");
     return lines.join("\n");
@@ -157,9 +224,14 @@ export default function CommunicationPage() {
                   <SelectValue placeholder="Sélectionner un match" />
                 </SelectTrigger>
                 <SelectContent className="bg-bg-surface-1 border-b-subtle">
-                  {MOCK_CONVOCATION_MATCHES.map((m) => (
+                  {futureMatches.length === 0 && (
+                    <SelectItem value="__none" disabled className="font-ui text-[13px] text-t-muted">
+                      Aucun match à venir
+                    </SelectItem>
+                  )}
+                  {futureMatches.map((m) => (
                     <SelectItem key={m.id} value={m.id} className="font-ui text-[13px]">
-                      {m.is_home ? `RFC Xhoffraix vs ${m.opponent}` : `${m.opponent} vs RFC Xhoffraix`}
+                      {matchSelectLabel(m)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -170,12 +242,14 @@ export default function CommunicationPage() {
                 <div className="space-y-1.5">
                   <label className="font-ui text-[12px] text-t-secondary">Date & heure</label>
                   <p className="font-ui text-[14px] text-t-primary py-2">
-                    {formatMatchDate(match.date)} — {formatMatchTime(match.date)}
+                    {formatMatchDate(match.match_date)} — {formatMatchTime(match.match_date)}
                   </p>
                 </div>
                 <div className="space-y-1.5">
                   <label className="font-ui text-[12px] text-t-secondary">Lieu</label>
-                  <p className="font-ui text-[14px] text-t-primary py-2 italic">{match.location}</p>
+                  <p className="font-ui text-[14px] text-t-primary py-2 italic">
+                    {match.location ?? (match.is_home ? "Domicile" : "Extérieur")}
+                  </p>
                 </div>
               </>
             )}
@@ -203,48 +277,68 @@ export default function CommunicationPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {MOCK_CONVOCATION_PLAYERS.map((player) => {
-              const status = selections[player.id];
-              const isSelected = !!status;
-              return (
-                <button
-                  key={player.id}
-                  onClick={() => togglePlayer(player.id)}
-                  className={`relative p-3 rounded-xl text-left transition-all duration-150 cursor-pointer ${
-                    isSelected
-                      ? "bg-[var(--color-primary-dim)] border border-[var(--color-primary-border)]"
-                      : "bg-bg-surface-2 border border-b-subtle hover:border-[var(--border-default)]"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
-                      isSelected ? "bg-[var(--color-primary-glow)]" : "bg-bg-surface-1"
-                    }`}>
-                      <span className="font-display text-[11px] text-t-primary">{player.jersey_number}</span>
+          {convocationPlayers.length === 0 ? (
+            <div className="py-8 text-center">
+              <p className="font-ui text-[13px] text-t-muted">Aucun joueur dans l'équipe active.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {convocationPlayers.map((player) => {
+                const status = selections[player.id];
+                const isSelected = !!status;
+                return (
+                  <button
+                    key={player.id}
+                    onClick={() => togglePlayer(player.id)}
+                    className={`relative p-3 rounded-xl text-left transition-all duration-150 cursor-pointer ${
+                      isSelected
+                        ? "bg-[var(--color-primary-dim)] border border-[var(--color-primary-border)]"
+                        : "bg-bg-surface-2 border border-b-subtle hover:border-[var(--border-default)]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                        isSelected ? "bg-[var(--color-primary-glow)]" : "bg-bg-surface-1"
+                      }`}>
+                        <span className="font-display text-[11px] text-t-primary">
+                          {player.jersey_number > 0 ? player.jersey_number : "—"}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-ui text-[13px] text-t-primary truncate">
+                          {player.first_name} {player.last_name}
+                        </p>
+                        <p className="font-ui text-[10px] text-t-muted uppercase tracking-wider">
+                          {player.position || "—"}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-ui text-[13px] text-t-primary truncate">
-                        {player.first_name} {player.last_name}
-                      </p>
-                      <p className="font-ui text-[10px] text-t-muted uppercase tracking-wider">{player.position}</p>
-                    </div>
-                  </div>
-                  {status && (
-                    <span
-                      className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-ui text-[9px] uppercase tracking-wider"
-                      style={{
-                        backgroundColor: status === "starter" ? "rgba(22,255,110,0.2)" : "rgba(79,142,255,0.2)",
-                        color: status === "starter" ? "var(--color-primary)" : "var(--color-info)",
-                      }}
-                    >
-                      {status === "starter" ? "Titulaire" : "Remplaçant"}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+                    {/* Selection badge */}
+                    {status && (
+                      <span
+                        className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-ui text-[9px] uppercase tracking-wider"
+                        style={{
+                          backgroundColor: status === "starter" ? "rgba(22,255,110,0.2)" : "rgba(79,142,255,0.2)",
+                          color: status === "starter" ? "var(--color-primary)" : "var(--color-info)",
+                        }}
+                      >
+                        {status === "starter" ? "Titulaire" : "Remplaçant"}
+                      </span>
+                    )}
+                    {/* Unavailability badge */}
+                    {player.isUnavailable && !status && (
+                      <span
+                        className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-ui text-[9px] uppercase tracking-wider"
+                        style={{ backgroundColor: "rgba(255,59,48,0.15)", color: "var(--color-danger)" }}
+                      >
+                        Indisponible
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Step 3 — Message */}

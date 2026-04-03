@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Calendar, MapPin, Clock, Pencil, Trash2 } from "lucide-react";
+import { Calendar, MapPin, Clock, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import AddFriendlyMatchDialog from "@/components/calendar/AddFriendlyMatchDialog";
 import EditScoreDialog from "@/components/calendar/EditScoreDialog";
 import {
@@ -49,6 +49,104 @@ function formatTime(iso: string) {
   return d.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
 }
 
+// ── Shared match card ─────────────────────────────────────────────────────────
+
+interface MatchCardProps {
+  match: Match;
+  journee: number | undefined;
+  userTeamName: string;
+  onEdit: (m: Match) => void;
+  onDelete: (id: string) => void;
+  canDelete: (m: Match) => boolean;
+}
+
+function MatchCard({ match, journee, userTeamName, onEdit, onDelete, canDelete }: MatchCardProps) {
+  const result = getResult(match);
+  const played = match.score_home !== null;
+  const rs = result ? resultStyles[result] : null;
+  const homeTeam = match.is_home ? userTeamName : match.opponent;
+  const awayTeam = match.is_home ? match.opponent : userTeamName;
+  const homeLogo = match.is_home ? match.team_logo_url : match.opponent_logo_url;
+  const awayLogo = match.is_home ? match.opponent_logo_url : match.team_logo_url;
+
+  return (
+    <div className="bg-bg-surface-1 border border-b-subtle rounded-xl p-4 flex items-center gap-4 hover:border-b-default transition-all animate-fade-in group">
+      {/* Type badge */}
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${match.type === "friendly" ? "bg-[rgba(22,255,110,0.1)] border border-primary-border" : "bg-bg-surface-2"}`}>
+        <span className="font-display text-[12px] text-t-muted">
+          {match.type === "friendly" ? "AM" : match.type === "cup" ? "CUP" : journee ? `J${journee}` : "—"}
+        </span>
+      </div>
+
+      {/* Teams & score */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          {homeLogo && <img src={homeLogo} alt={homeTeam} className="h-5 w-5 object-contain shrink-0" />}
+          <span className={`font-ui text-[14px] truncate ${match.is_home ? "text-t-primary font-semibold" : "text-t-secondary"}`}>
+            {homeTeam}
+          </span>
+          {played ? (
+            <span className="font-display text-[16px] text-t-primary tracking-wider shrink-0">
+              {match.score_home} - {match.score_away}
+            </span>
+          ) : (
+            <span className="font-ui text-[12px] text-t-muted shrink-0">vs</span>
+          )}
+          {awayLogo && <img src={awayLogo} alt={awayTeam} className="h-5 w-5 object-contain shrink-0" />}
+          <span className={`font-ui text-[14px] truncate ${!match.is_home ? "text-t-primary font-semibold" : "text-t-secondary"}`}>
+            {awayTeam}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 mt-1">
+          <span className="font-ui text-[11px] text-t-muted">
+            {formatDate(match.match_date)} — {formatTime(match.match_date)}
+          </span>
+          {match.location && (
+            <span className="font-ui text-[11px] text-t-muted flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              {match.location}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        {new Date(match.match_date) <= new Date() && (
+          <button
+            onClick={() => onEdit(match)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center bg-bg-surface-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-bg-surface-1 border border-transparent hover:border-b-subtle"
+            title="Encoder le score"
+          >
+            <Pencil className="h-3.5 w-3.5 text-t-muted" />
+          </button>
+        )}
+        {canDelete(match) && (
+          <button
+            onClick={() => onDelete(match.id)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center bg-bg-surface-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-[rgba(255,59,48,0.15)] border border-transparent hover:border-[rgba(255,59,48,0.3)]"
+            title="Supprimer"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-[var(--color-danger)]" />
+          </button>
+        )}
+        {rs && (
+          <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${rs.bg}`}>
+            <span className={`font-display text-[13px] ${rs.text}`}>{rs.label}</span>
+          </div>
+        )}
+        {!played && (
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-bg-surface-2">
+            <Calendar className="h-4 w-4 text-t-muted" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function CalendarPage() {
   const { toast } = useToast();
   const { activeTeamId: teamId, activeTeam } = useActiveTeam();
@@ -63,20 +161,38 @@ export default function CalendarPage() {
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
   const [deletingMatchId, setDeletingMatchId] = useState<string | null>(null);
 
-  // Compute journée index (sequential number among championship matches)
+  // journée index among championship matches
   const championshipJournee = useMemo(() => {
-    const champ = matches.filter((m) => m.type === "championship").map((m, i) => ({ id: m.id, j: i + 1 }));
+    const champ = matches
+      .filter((m) => m.type === "championship")
+      .map((m, i) => ({ id: m.id, j: i + 1 }));
     return new Map(champ.map((c) => [c.id, c.j]));
   }, [matches]);
 
+  // Upcoming = not yet played, ascending; played = newest first
+  const upcomingMatches = useMemo(
+    () => matches.filter((m) => m.score_home === null),
+    [matches]
+  );
+  const playedMatches = useMemo(
+    () => matches.filter((m) => m.score_home !== null).slice().reverse(),
+    [matches]
+  );
+
+  // Accordéon: open by default when few upcoming matches (<5)
+  const [upcomingOpen, setUpcomingOpen] = useState<boolean | null>(null);
+  const isUpcomingOpen = upcomingOpen ?? upcomingMatches.length < 5;
+
+  // For "played"/"upcoming" filter tabs
   const filtered = useMemo(() => {
-    let list = [...matches];
-    if (filter === "played")   list = list.filter((m) => m.score_home !== null);
-    if (filter === "upcoming") list = list.filter((m) => m.score_home === null);
-    return list;
-  }, [matches, filter]);
+    if (filter === "played")   return playedMatches;
+    if (filter === "upcoming") return upcomingMatches;
+    return [];
+  }, [filter, playedMatches, upcomingMatches]);
 
   const nextMatch = useMemo(() => matches.find((m) => m.score_home === null), [matches]);
+
+  const canDelete = (m: Match) => m.source === "manual" || m.type === "friendly";
 
   const handleAddFriendly = async (data: { opponent: string; isHome: boolean; date: string; time: string; location: string }) => {
     try {
@@ -114,8 +230,13 @@ export default function CalendarPage() {
     setEditingMatch(null);
   };
 
-  // Can only delete manually-created matches (source = 'manual') or friendly matches
-  const canDelete = (m: Match) => m.source === "manual" || m.type === "friendly";
+  // Shared props for MatchCard
+  const cardProps = {
+    userTeamName,
+    onEdit: setEditingMatch,
+    onDelete: setDeletingMatchId,
+    canDelete,
+  };
 
   return (
     <div className="space-y-6">
@@ -198,102 +319,61 @@ export default function CalendarPage() {
             <div key={i} className="bg-bg-surface-1 border border-b-subtle rounded-xl p-4 h-[72px] animate-pulse" />
           ))}
         </div>
+      ) : filter === "all" ? (
+        <div className="space-y-4">
+          {/* Accordéon — matchs à venir */}
+          <div className="bg-bg-surface-1 border border-b-subtle rounded-xl overflow-hidden">
+            <button
+              onClick={() => setUpcomingOpen(!isUpcomingOpen)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-bg-surface-2 transition-colors cursor-pointer"
+            >
+              <span className="font-ui text-[12px] text-t-secondary uppercase tracking-[0.12em]">
+                Matchs à venir ({upcomingMatches.length})
+              </span>
+              {isUpcomingOpen
+                ? <ChevronUp className="h-4 w-4 text-t-muted" />
+                : <ChevronDown className="h-4 w-4 text-t-muted" />}
+            </button>
+            {isUpcomingOpen && (
+              <div className="border-t border-b-subtle space-y-2 p-2">
+                {upcomingMatches.length === 0 ? (
+                  <p className="px-2 py-3 font-ui text-[13px] text-t-muted text-center">Aucun match à venir</p>
+                ) : (
+                  upcomingMatches.map((m) => (
+                    <MatchCard key={m.id} match={m} journee={championshipJournee.get(m.id)} {...cardProps} />
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Matchs joués — newest first */}
+          {playedMatches.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-ui text-[12px] text-t-muted uppercase tracking-[0.12em] px-1">
+                Matchs joués ({playedMatches.length})
+              </p>
+              {playedMatches.map((m) => (
+                <MatchCard key={m.id} match={m} journee={championshipJournee.get(m.id)} {...cardProps} />
+              ))}
+            </div>
+          )}
+
+          {upcomingMatches.length === 0 && playedMatches.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="font-ui text-[14px] text-t-secondary">Aucun match</p>
+            </div>
+          )}
+        </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <p className="font-ui text-[14px] text-t-secondary">Aucun match</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((match) => {
-            const result = getResult(match);
-            const played = match.score_home !== null;
-            const rs = result ? resultStyles[result] : null;
-            const journee = championshipJournee.get(match.id);
-            const homeTeam = match.is_home ? userTeamName : match.opponent;
-            const awayTeam = match.is_home ? match.opponent : userTeamName;
-            const homeLogo = match.is_home ? match.team_logo_url : match.opponent_logo_url;
-            const awayLogo = match.is_home ? match.opponent_logo_url : match.team_logo_url;
-
-            return (
-              <div
-                key={match.id}
-                className="bg-bg-surface-1 border border-b-subtle rounded-xl p-4 flex items-center gap-4 hover:border-b-default transition-all animate-fade-in group"
-              >
-                {/* Type badge */}
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${match.type === "friendly" ? "bg-[rgba(22,255,110,0.1)] border border-primary-border" : "bg-bg-surface-2"}`}>
-                  <span className="font-display text-[12px] text-t-muted">
-                    {match.type === "friendly" ? "AM" : match.type === "cup" ? "CUP" : journee ? `J${journee}` : "—"}
-                  </span>
-                </div>
-
-                {/* Teams & score */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    {homeLogo && <img src={homeLogo} alt={homeTeam} className="h-5 w-5 object-contain shrink-0" />}
-                    <span className={`font-ui text-[14px] truncate ${match.is_home ? "text-t-primary font-semibold" : "text-t-secondary"}`}>
-                      {homeTeam}
-                    </span>
-                    {played ? (
-                      <span className="font-display text-[16px] text-t-primary tracking-wider shrink-0">
-                        {match.score_home} - {match.score_away}
-                      </span>
-                    ) : (
-                      <span className="font-ui text-[12px] text-t-muted shrink-0">vs</span>
-                    )}
-                    {awayLogo && <img src={awayLogo} alt={awayTeam} className="h-5 w-5 object-contain shrink-0" />}
-                    <span className={`font-ui text-[14px] truncate ${!match.is_home ? "text-t-primary font-semibold" : "text-t-secondary"}`}>
-                      {awayTeam}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="font-ui text-[11px] text-t-muted">
-                      {formatDate(match.match_date)} — {formatTime(match.match_date)}
-                    </span>
-                    {match.location && (
-                      <span className="font-ui text-[11px] text-t-muted flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {match.location}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {new Date(match.match_date) <= new Date() && (
-                    <button
-                      onClick={() => setEditingMatch(match)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center bg-bg-surface-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-bg-surface-1 border border-transparent hover:border-b-subtle"
-                      title="Encoder le score"
-                    >
-                      <Pencil className="h-3.5 w-3.5 text-t-muted" />
-                    </button>
-                  )}
-
-                  {canDelete(match) && (
-                    <button
-                      onClick={() => setDeletingMatchId(match.id)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center bg-bg-surface-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-[rgba(255,59,48,0.15)] border border-transparent hover:border-[rgba(255,59,48,0.3)]"
-                      title="Supprimer"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-[var(--color-danger)]" />
-                    </button>
-                  )}
-
-                  {rs && (
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${rs.bg}`}>
-                      <span className={`font-display text-[13px] ${rs.text}`}>{rs.label}</span>
-                    </div>
-                  )}
-                  {!played && (
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-bg-surface-2">
-                      <Calendar className="h-4 w-4 text-t-muted" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {filtered.map((m) => (
+            <MatchCard key={m.id} match={m} journee={championshipJournee.get(m.id)} {...cardProps} />
+          ))}
         </div>
       )}
 
@@ -302,8 +382,8 @@ export default function CalendarPage() {
         <EditScoreDialog
           open={!!editingMatch}
           onOpenChange={(v) => { if (!v) setEditingMatch(null); }}
-          home={editingMatch.home_team_name ?? userTeamName}
-          away={editingMatch.opponent}
+          home={editingMatch.is_home ? userTeamName : editingMatch.opponent}
+          away={editingMatch.is_home ? editingMatch.opponent : userTeamName}
           currentHomeScore={editingMatch.score_home}
           currentAwayScore={editingMatch.score_away}
           onSave={handleSaveScore}

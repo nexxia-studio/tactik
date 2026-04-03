@@ -181,6 +181,9 @@ export default function Dashboard() {
             </div>
 
             {/* Match list */}
+            {/* TODO: enrich match rows with goals scored, goals conceded, goal diff,
+                clean sheet indicator (0 goals conceded). Requires DashboardMatch to
+                expose score_home/score_away and is_home — already available. */}
             <div className="space-y-1">
               {data!.lastMatches.map((m) => {
                 const r = getResult(m);

@@ -106,6 +106,32 @@ export function useUpdateTraining() {
   });
 }
 
+/** Fetch present/absent counts for a list of training IDs in a single query */
+export function useTrainingsAttendanceCounts(trainingIds: string[]) {
+  const key = trainingIds.slice().sort().join(",");
+  return useQuery({
+    queryKey: ["trainings_attendance_counts", key],
+    enabled: trainingIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("training_attendance")
+        .select("training_id, status")
+        .in("training_id", trainingIds);
+      if (error) throw error;
+      const counts: Record<string, { present: number; absent: number }> = {};
+      for (const att of data ?? []) {
+        if (!counts[att.training_id]) counts[att.training_id] = { present: 0, absent: 0 };
+        if (att.status === "present" || att.status === "late") {
+          counts[att.training_id].present++;
+        } else {
+          counts[att.training_id].absent++;
+        }
+      }
+      return counts;
+    },
+  });
+}
+
 export function useUpsertAttendance() {
   const qc = useQueryClient();
   return useMutation({

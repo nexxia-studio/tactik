@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { List, CalendarDays } from "lucide-react";
 import { useState } from "react";
 import { useActiveTeam } from "@/contexts/TeamContext";
-import { useTrainings, useCreateTraining } from "@/hooks/useTrainings";
+import { useTrainings, useCreateTraining, useTrainingsAttendanceCounts } from "@/hooks/useTrainings";
 import { useToast } from "@/hooks/use-toast";
 import TrainingCard from "@/components/trainings/TrainingCard";
 import TrainingCalendarView from "@/components/trainings/TrainingCalendarView";
@@ -15,6 +15,8 @@ export default function TrainingsPage() {
   const { activeTeamId: teamId, activeTeam } = useActiveTeam();
   const { data: trainings = [], isLoading } = useTrainings(teamId);
   const createTraining = useCreateTraining(teamId, activeTeam?.season_id);
+  const trainingIds = useMemo(() => trainings.map((t) => t.id), [trainings]);
+  const { data: attendanceCounts = {} } = useTrainingsAttendanceCounts(trainingIds);
 
   const [view, setView] = useState<ViewMode>("list");
 
@@ -97,7 +99,12 @@ export default function TrainingsPage() {
               </h2>
               <div className="space-y-2">
                 {upcoming.map((t) => (
-                  <TrainingCard key={t.id} training={t} />
+                  <TrainingCard
+                    key={t.id}
+                    training={t}
+                    presentCount={attendanceCounts[t.id]?.present}
+                    absentCount={attendanceCounts[t.id]?.absent}
+                  />
                 ))}
               </div>
             </section>
@@ -110,7 +117,12 @@ export default function TrainingsPage() {
               </h2>
               <div className="space-y-2">
                 {past.map((t) => (
-                  <TrainingCard key={t.id} training={t} />
+                  <TrainingCard
+                    key={t.id}
+                    training={t}
+                    presentCount={attendanceCounts[t.id]?.present}
+                    absentCount={attendanceCounts[t.id]?.absent}
+                  />
                 ))}
               </div>
             </section>

@@ -12,6 +12,7 @@ import {
   useUpsertAttendance,
 } from "@/hooks/useTrainings";
 import { useActiveUnavailabilities } from "@/hooks/usePlayerUnavailabilities";
+import { TrainingSectionsEditor } from "@/components/trainings/TrainingSectionsEditor";
 import { useToast } from "@/hooks/use-toast";
 
 type AttendanceStatus = "present" | "late" | "absent" | "excused";
@@ -225,6 +226,9 @@ export default function SessionDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Programme de séance */}
+      <TrainingSectionsEditor trainingId={training.id} />
 
       {/* Présences */}
       {teamPlayers.length > 0 && (

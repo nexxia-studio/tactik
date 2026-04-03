@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { MapPin, ChevronRight } from "lucide-react";
+import { MapPin, ChevronRight, UserCheck, UserX } from "lucide-react";
 import type { Training } from "@/hooks/useTrainings";
 
 function formatTrainingDate(iso: string) {
@@ -18,9 +18,16 @@ const STATUS_STYLES: Record<string, { label: string; bg: string; color: string }
   cancelled:  { label: "Annulé",   bg: "rgba(255,59,48,0.15)",   color: "var(--color-danger)"  },
 };
 
-export default function TrainingCard({ training }: { training: Training }) {
+interface Props {
+  training: Training;
+  presentCount?: number;
+  absentCount?: number;
+}
+
+export default function TrainingCard({ training, presentCount, absentCount }: Props) {
   const navigate = useNavigate();
   const style = STATUS_STYLES[training.status] ?? STATUS_STYLES.scheduled;
+  const hasAttendance = (presentCount ?? 0) + (absentCount ?? 0) > 0;
 
   return (
     <div
@@ -47,10 +54,20 @@ export default function TrainingCard({ training }: { training: Training }) {
             </p>
           )}
 
-          {training.status === "completed" && training.notes && (
-            <p className="font-ui text-[11px] text-t-muted line-clamp-2 mt-1">
-              {training.notes}
-            </p>
+          {/* Attendance counters */}
+          {hasAttendance && (
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1 font-ui text-[11px] text-[var(--color-primary)]">
+                <UserCheck className="h-3 w-3" />
+                {presentCount ?? 0} présent{(presentCount ?? 0) !== 1 ? "s" : ""}
+              </span>
+              {(absentCount ?? 0) > 0 && (
+                <span className="flex items-center gap-1 font-ui text-[11px] text-[var(--color-danger)]">
+                  <UserX className="h-3 w-3" />
+                  {absentCount} absent{absentCount !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
           )}
         </div>
 

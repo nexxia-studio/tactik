@@ -29,9 +29,12 @@ export interface DashboardData {
   attendanceTotal: number;
 }
 
-export function useDashboard(teamId: string | undefined) {
+export function useDashboard(
+  teamId: string | undefined,
+  organizationId: string | undefined,
+) {
   return useQuery({
-    queryKey: ["dashboard", teamId],
+    queryKey: ["dashboard", teamId, organizationId],
     enabled: !!teamId,
     queryFn: async (): Promise<DashboardData> => {
       const now = new Date().toISOString();
@@ -41,6 +44,21 @@ export function useDashboard(teamId: string | undefined) {
         new Date().getMonth(),
         1
       ).toISOString();
+
+      // Resolve VIB team IDs for match queries.
+      // VIB teams share the same organization_id as the user's onboarding team
+      // and have external_api_id in "slug:compId" format.
+      let matchTeamIds: string[] = [teamId!];
+      if (organizationId) {
+        const { data: vibTeams } = await supabase
+          .from("teams")
+          .select("id")
+          .eq("organization_id", organizationId)
+          .like("external_api_id", "%:%");
+        if (vibTeams?.length) {
+          matchTeamIds = vibTeams.map((t) => t.id);
+        }
+      }
 
       // Run independent queries in parallel
       const [
@@ -54,7 +72,7 @@ export function useDashboard(teamId: string | undefined) {
         supabase
           .from("matches")
           .select("id, opponent, match_date, is_home, location, score_home, score_away")
-          .eq("team_id", teamId!)
+          .in("team_id", matchTeamIds)
           .eq("status", "scheduled")
           .gte("match_date", now)
           .order("match_date")
@@ -74,7 +92,7 @@ export function useDashboard(teamId: string | undefined) {
         supabase
           .from("matches")
           .select("id, opponent, match_date, is_home, location, score_home, score_away")
-          .eq("team_id", teamId!)
+          .in("team_id", matchTeamIds)
           .eq("status", "completed")
           .order("match_date", { ascending: false })
           .limit(5),

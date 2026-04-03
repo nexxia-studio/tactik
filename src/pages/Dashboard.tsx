@@ -83,8 +83,8 @@ function StatCard({
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { activeTeamId: teamId } = useActiveTeam();
-  const { data, isLoading } = useDashboard(teamId);
+  const { activeTeamId: teamId, activeTeam } = useActiveTeam();
+  const { data, isLoading } = useDashboard(teamId, activeTeam?.organization_id);
 
   // Stat card values
   const nextMatchValue = data?.nextMatch ? fmtDate(data.nextMatch.match_date) : "—";

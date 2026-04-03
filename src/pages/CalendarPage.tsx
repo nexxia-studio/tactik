@@ -14,13 +14,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useActiveTeam } from "@/contexts/TeamContext";
 import {
-  useMatchesByDivision,
+  useMatchesByOrg,
   useCreateMatch,
   useUpdateMatchScore,
   useDeleteMatch,
-  DIVISIONS,
   type Match,
-  type DivisionKey,
 } from "@/hooks/useMatches";
 import { useToast } from "@/hooks/use-toast";
 
@@ -56,8 +54,7 @@ export default function CalendarPage() {
   const { activeTeamId: teamId, activeTeam } = useActiveTeam();
   const userTeamName = activeTeam?.name ?? "Nous";
 
-  const [division, setDivision] = useState<DivisionKey>("P1");
-  const { data: matches = [], isLoading } = useMatchesByDivision(division);
+  const { data: matches = [], isLoading } = useMatchesByOrg(activeTeam?.organization_id);
   const createMatch = useCreateMatch(teamId);
   const updateScore = useUpdateMatchScore();
   const deleteMatch = useDeleteMatch();
@@ -123,60 +120,52 @@ export default function CalendarPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="space-y-3">
+      <div>
         <h1 className="font-display text-t-primary leading-none" style={{ fontSize: "var(--text-h1)" }}>
           CALENDRIER
         </h1>
-        <div className="flex gap-1.5">
-          {DIVISIONS.map((d) => (
-            <button
-              key={d.key}
-              onClick={() => setDivision(d.key)}
-              className={`px-3 py-1.5 rounded-lg font-ui text-[12px] transition-all cursor-pointer ${
-                division === d.key
-                  ? "bg-primary text-primary-text"
-                  : "bg-bg-surface-1 text-t-secondary border border-b-subtle hover:bg-bg-surface-2"
-              }`}
-            >
-              {d.label}
-            </button>
-          ))}
-        </div>
+        <p className="text-t-secondary font-ui text-[var(--text-small)] mt-2">
+          {activeTeam?.name ?? "Mon équipe"}
+        </p>
       </div>
 
       {/* Next match highlight */}
-      {nextMatch && (
-        <div className="bg-bg-surface-1 border border-primary-border rounded-xl p-5 glow-primary animate-fade-in">
-          <p className="text-label mb-3">
-            PROCHAIN MATCH — {nextMatch.type === "friendly" ? "AMICAL" : nextMatch.type === "cup" ? "COUPE" : `JOURNÉE ${championshipJournee.get(nextMatch.id) ?? "—"}`}
-          </p>
-          <div className="flex items-center justify-between">
-            <div className="flex-1 text-right">
-              <p className="font-display text-[18px] leading-tight text-primary">
-                {nextMatch.home_team_name ?? userTeamName}
-              </p>
-            </div>
-            <div className="px-6 text-center">
-              <p className="font-display text-[24px] text-t-primary">VS</p>
-              <div className="flex items-center gap-1.5 mt-1 text-t-muted">
-                <Clock className="h-3 w-3" />
-                <span className="font-ui text-[11px]">{formatDate(nextMatch.match_date)} — {formatTime(nextMatch.match_date)}</span>
+      {nextMatch && (() => {
+        const nmHomeTeam = nextMatch.is_home ? userTeamName : nextMatch.opponent;
+        const nmAwayTeam = nextMatch.is_home ? nextMatch.opponent : userTeamName;
+        const nmHomeLogo = nextMatch.is_home ? nextMatch.team_logo_url : nextMatch.opponent_logo_url;
+        const nmAwayLogo = nextMatch.is_home ? nextMatch.opponent_logo_url : nextMatch.team_logo_url;
+        return (
+          <div className="bg-bg-surface-1 border border-primary-border rounded-xl p-5 glow-primary animate-fade-in">
+            <p className="text-label mb-3">
+              PROCHAIN MATCH — {nextMatch.type === "friendly" ? "AMICAL" : nextMatch.type === "cup" ? "COUPE" : `JOURNÉE ${championshipJournee.get(nextMatch.id) ?? "—"}`}
+            </p>
+            <div className="flex items-center justify-between">
+              <div className="flex-1 text-right flex flex-col items-end gap-1.5">
+                {nmHomeLogo && <img src={nmHomeLogo} alt={nmHomeTeam} className="h-8 w-8 object-contain" />}
+                <p className="font-display text-[18px] leading-tight text-primary">{nmHomeTeam}</p>
+              </div>
+              <div className="px-6 text-center">
+                <p className="font-display text-[24px] text-t-primary">VS</p>
+                <div className="flex items-center gap-1.5 mt-1 text-t-muted">
+                  <Clock className="h-3 w-3" />
+                  <span className="font-ui text-[11px]">{formatDate(nextMatch.match_date)} — {formatTime(nextMatch.match_date)}</span>
+                </div>
+              </div>
+              <div className="flex-1 text-left flex flex-col items-start gap-1.5">
+                {nmAwayLogo && <img src={nmAwayLogo} alt={nmAwayTeam} className="h-8 w-8 object-contain" />}
+                <p className="font-display text-[18px] leading-tight text-t-primary">{nmAwayTeam}</p>
               </div>
             </div>
-            <div className="flex-1 text-left">
-              <p className="font-display text-[18px] leading-tight text-t-primary">
-                {nextMatch.opponent}
-              </p>
-            </div>
+            {nextMatch.location && (
+              <div className="flex items-center justify-center gap-1.5 mt-3 text-t-muted">
+                <MapPin className="h-3 w-3" />
+                <span className="font-ui text-[11px]">{nextMatch.location}</span>
+              </div>
+            )}
           </div>
-          {nextMatch.location && (
-            <div className="flex items-center justify-center gap-1.5 mt-3 text-t-muted">
-              <MapPin className="h-3 w-3" />
-              <span className="font-ui text-[11px]">{nextMatch.location}</span>
-            </div>
-          )}
-        </div>
-      )}
+        );
+      })()}
 
       {/* Filters */}
       <div className="flex gap-1.5 items-center">
@@ -220,8 +209,10 @@ export default function CalendarPage() {
             const played = match.score_home !== null;
             const rs = result ? resultStyles[result] : null;
             const journee = championshipJournee.get(match.id);
-            const homeTeam = match.home_team_name ?? userTeamName;
-            const awayTeam = match.opponent;
+            const homeTeam = match.is_home ? userTeamName : match.opponent;
+            const awayTeam = match.is_home ? match.opponent : userTeamName;
+            const homeLogo = match.is_home ? match.team_logo_url : match.opponent_logo_url;
+            const awayLogo = match.is_home ? match.opponent_logo_url : match.team_logo_url;
 
             return (
               <div
@@ -238,17 +229,19 @@ export default function CalendarPage() {
                 {/* Teams & score */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className={`font-ui text-[14px] ${match.is_home ? "text-t-primary font-semibold" : "text-t-secondary"}`}>
+                    {homeLogo && <img src={homeLogo} alt={homeTeam} className="h-5 w-5 object-contain shrink-0" />}
+                    <span className={`font-ui text-[14px] truncate ${match.is_home ? "text-t-primary font-semibold" : "text-t-secondary"}`}>
                       {homeTeam}
                     </span>
                     {played ? (
-                      <span className="font-display text-[16px] text-t-primary tracking-wider">
+                      <span className="font-display text-[16px] text-t-primary tracking-wider shrink-0">
                         {match.score_home} - {match.score_away}
                       </span>
                     ) : (
-                      <span className="font-ui text-[12px] text-t-muted">vs</span>
+                      <span className="font-ui text-[12px] text-t-muted shrink-0">vs</span>
                     )}
-                    <span className={`font-ui text-[14px] ${!match.is_home ? "text-t-primary font-semibold" : "text-t-secondary"}`}>
+                    {awayLogo && <img src={awayLogo} alt={awayTeam} className="h-5 w-5 object-contain shrink-0" />}
+                    <span className={`font-ui text-[14px] truncate ${!match.is_home ? "text-t-primary font-semibold" : "text-t-secondary"}`}>
                       {awayTeam}
                     </span>
                   </div>

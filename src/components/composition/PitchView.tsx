@@ -135,38 +135,41 @@ export function PitchView({ formation, players, onSwapSlots, onDropBenchPlayer, 
           return (
             <div
               key={i}
-              className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-transform duration-150 ${
-                !readonly && player ? "cursor-grab active:cursor-grabbing" : ""
-              } ${isOver ? "scale-110" : ""}`}
+              className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-transform duration-150 ${isOver ? "scale-110" : ""}`}
               style={{
                 left: `${pos.x}%`,
                 top: `${pos.y}%`,
                 zIndex: isOver ? 10 : 2,
               }}
-              draggable={!readonly && !!player}
-              onDragStart={readonly ? undefined : (e) => handleDragStart(e, i)}
               onDragOver={readonly ? undefined : (e) => handleDragOver(e, i)}
               onDragLeave={readonly ? undefined : handleDragLeave}
               onDrop={readonly ? undefined : (e) => handleDrop(e, i)}
             >
               {player ? (
+                /* Draggable player card — drag source AND drop target */
                 <div
-                  className={`${isOver ? "ring-2 ring-primary rounded-lg" : ""} ${readonly ? "" : "cursor-pointer"}`}
+                  draggable={!readonly}
+                  onDragStart={readonly ? undefined : (e) => handleDragStart(e, i)}
+                  onDragOver={readonly ? undefined : (e) => handleDragOver(e, i)}
+                  onDrop={readonly ? undefined : (e) => handleDrop(e, i)}
                   onClick={readonly ? undefined : () => onRemovePlayer?.(player.id)}
+                  className={`${isOver ? "ring-2 ring-primary rounded-lg" : ""} ${
+                    readonly ? "cursor-default" : "cursor-grab active:cursor-grabbing"
+                  }`}
                 >
                   <FUTPlayerCard player={player} positionLabel={pos.label} compact />
                 </div>
               ) : (
-                /* Empty slot — drop target */
+                /* Empty slot — drop target only */
                 <div
                   className={`w-[52px] h-[68px] sm:w-[60px] sm:h-[78px] rounded-lg border-2 border-dashed flex items-center justify-center transition-colors ${
                     isOver
                       ? "border-primary bg-primary-dim/30"
                       : "border-white/20 bg-white/5"
                   }`}
-                  onDragOver={(e) => handleDragOver(e, i)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, i)}
+                  onDragOver={readonly ? undefined : (e) => handleDragOver(e, i)}
+                  onDragLeave={readonly ? undefined : handleDragLeave}
+                  onDrop={readonly ? undefined : (e) => handleDrop(e, i)}
                 >
                   <span className="font-ui text-[9px] text-white/40 uppercase">{pos.label}</span>
                 </div>

@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Dumbbell, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Training } from "@/hooks/useTrainings";
+import type { Match } from "@/hooks/useMatches";
 
 const DAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const MONTHS_FR = [
@@ -9,44 +10,90 @@ const MONTHS_FR = [
   "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
 ];
 
-interface TrainingCalendarViewProps {
-  trainings: Training[];
+const MATCH_TYPE_STYLES: Record<string, { color: string; label: string }> = {
+  championship: { color: "var(--color-primary)", label: "Championnat" },
+  friendly:     { color: "var(--color-info)",    label: "Amical"      },
+  cup:          { color: "#FFB800",              label: "Coupe"       },
+};
+
+function formatTime(iso: string) {
+  const d = new Date(iso);
+  return `${d.getHours()}h${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-export default function TrainingCalendarView({ trainings }: TrainingCalendarViewProps) {
+// Parse a date string to { year, month (0-indexed), day } without timezone shift
+function parseDateParts(dateStr: string): { y: number; mo: number; d: number } {
+  const base = dateStr.split("T")[0];
+  const [y, mo, d] = base.split("-").map(Number);
+  return { y, mo: mo - 1, d };
+}
+
+interface TrainingCalendarViewProps {
+  trainings: Training[];
+  matches?: Match[];
+}
+
+export default function TrainingCalendarView({ trainings, matches = [] }: TrainingCalendarViewProps) {
   const navigate = useNavigate();
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 3, 1)); // April 2026
+  const [currentMonth, setCurrentMonth] = useState(() => new Date());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
 
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayOfWeek = (new Date(year, month, 1).getDay() + 6) % 7; // Monday = 0
-
   const trainingsByDay = useMemo(() => {
     const map: Record<number, Training[]> = {};
     trainings.forEach((t) => {
-      const d = new Date(t.scheduled_at);
-      if (d.getFullYear() === year && d.getMonth() === month) {
-        const day = d.getDate();
-        if (!map[day]) map[day] = [];
-        map[day].push(t);
+      const { y, mo, d } = parseDateParts(t.scheduled_at);
+      if (y === year && mo === month) {
+        if (!map[d]) map[d] = [];
+        map[d].push(t);
       }
     });
     return map;
   }, [trainings, year, month]);
 
-  const prevMonth = () => setCurrentMonth(new Date(year, month - 1, 1));
-  const nextMonth = () => setCurrentMonth(new Date(year, month + 1, 1));
+  const matchesByDay = useMemo(() => {
+    const map: Record<number, Match[]> = {};
+    matches.forEach((m) => {
+      const { y, mo, d } = parseDateParts(m.match_date);
+      if (y === year && mo === month) {
+        if (!map[d]) map[d] = [];
+        map[d].push(m);
+      }
+    });
+    return map;
+  }, [matches, year, month]);
+
+  const prevMonth = () => { setCurrentMonth(new Date(year, month - 1, 1)); setSelectedDay(null); };
+  const nextMonth = () => { setCurrentMonth(new Date(year, month + 1, 1)); setSelectedDay(null); };
 
   const today = new Date();
   const isToday = (day: number) =>
     today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
 
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = (new Date(year, month, 1).getDay() + 6) % 7;
+
   const cells: (number | null)[] = [];
   for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
+
+  const handleDayClick = (day: number) => {
+    const dayTrainings = trainingsByDay[day] ?? [];
+    const dayMatches = matchesByDay[day] ?? [];
+    if (dayTrainings.length === 0 && dayMatches.length === 0) return;
+    // Single training, no matches: navigate directly
+    if (dayTrainings.length === 1 && dayMatches.length === 0) {
+      navigate(`/seance/${dayTrainings[0].id}`);
+      return;
+    }
+    setSelectedDay(selectedDay === day ? null : day);
+  };
+
+  const selectedTrainings = selectedDay ? (trainingsByDay[selectedDay] ?? []) : [];
+  const selectedMatches = selectedDay ? (matchesByDay[selectedDay] ?? []) : [];
 
   return (
     <div className="space-y-4">
@@ -85,20 +132,39 @@ export default function TrainingCalendarView({ trainings }: TrainingCalendarView
             return <div key={`empty-${i}`} className="aspect-square" />;
           }
 
-          const dayTrainings = trainingsByDay[day] || [];
-          const hasTraining = dayTrainings.length > 0;
+          const dayTrainings = trainingsByDay[day] ?? [];
+          const dayMatches = matchesByDay[day] ?? [];
+          const hasEvents = dayTrainings.length > 0 || dayMatches.length > 0;
+          const isSelected = selectedDay === day;
+
+          // Build dot list: 1 training dot + match dots by type (deduplicated)
+          const dots: { color: string; key: string }[] = [];
+          if (dayTrainings.length > 0) {
+            dots.push({ color: "var(--color-info)", key: "training" });
+          }
+          const seenTypes = new Set<string>();
+          for (const m of dayMatches) {
+            const type = m.type ?? "friendly";
+            if (!seenTypes.has(type)) {
+              seenTypes.add(type);
+              const style = MATCH_TYPE_STYLES[type] ?? MATCH_TYPE_STYLES.friendly;
+              dots.push({ color: style.color, key: `match-${type}` });
+            }
+          }
 
           return (
             <div
               key={day}
-              onClick={() => {
-                if (hasTraining) navigate(`/seance/${dayTrainings[0].id}`);
-              }}
+              onClick={() => handleDayClick(day)}
               className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all ${
-                hasTraining
-                  ? "cursor-pointer hover:bg-bg-surface-2 border border-b-subtle"
-                  : ""
-              } ${isToday(day) ? "bg-bg-surface-2 border border-b-default" : "bg-bg-surface-1"}`}
+                hasEvents ? "cursor-pointer hover:bg-bg-surface-2" : ""
+              } ${
+                isSelected
+                  ? "bg-bg-surface-2 border border-primary/40"
+                  : isToday(day)
+                  ? "bg-bg-surface-2 border border-b-default"
+                  : "bg-bg-surface-1 border border-transparent"
+              }`}
             >
               <span
                 className={`font-ui text-[13px] ${
@@ -107,13 +173,13 @@ export default function TrainingCalendarView({ trainings }: TrainingCalendarView
               >
                 {day}
               </span>
-              {hasTraining && (
-                <div className="flex gap-0.5">
-                  {dayTrainings.map((t) => (
+              {dots.length > 0 && (
+                <div className="flex gap-0.5 flex-wrap justify-center">
+                  {dots.slice(0, 3).map((dot) => (
                     <div
-                      key={t.id}
+                      key={dot.key}
                       className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: "var(--color-info)" }}
+                      style={{ backgroundColor: dot.color }}
                     />
                   ))}
                 </div>
@@ -123,19 +189,84 @@ export default function TrainingCalendarView({ trainings }: TrainingCalendarView
         })}
       </div>
 
+      {/* Selected day detail panel */}
+      {selectedDay !== null && (selectedTrainings.length > 0 || selectedMatches.length > 0) && (
+        <div className="bg-bg-surface-1 border border-b-subtle rounded-xl overflow-hidden animate-fade-in">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-bg-surface-2 border-b border-b-subtle">
+            <span className="font-display text-[13px] text-t-primary uppercase tracking-wider">
+              {selectedDay} {MONTHS_FR[month]}
+            </span>
+            <button
+              onClick={() => setSelectedDay(null)}
+              className="p-1 text-t-muted hover:text-t-primary transition-colors cursor-pointer"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="divide-y divide-b-subtle">
+            {selectedTrainings.map((t) => (
+              <div key={t.id} className="flex items-center gap-3 px-4 py-3">
+                <Dumbbell className="h-4 w-4 shrink-0" style={{ color: "var(--color-info)" }} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-ui text-[13px] text-t-primary">
+                    Entraînement
+                    <span className="text-t-muted ml-1.5">— {formatTime(t.scheduled_at)}</span>
+                  </p>
+                  {t.location && (
+                    <p className="font-ui text-[11px] text-t-muted truncate">{t.location}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => navigate(`/seance/${t.id}`)}
+                  className="font-ui text-[11px] text-primary hover:opacity-80 cursor-pointer shrink-0 transition-opacity"
+                >
+                  Voir →
+                </button>
+              </div>
+            ))}
+            {selectedMatches.map((m) => {
+              const typeStyle = MATCH_TYPE_STYLES[m.type] ?? MATCH_TYPE_STYLES.friendly;
+              return (
+                <div key={m.id} className="flex items-center gap-3 px-4 py-3">
+                  <span className="text-[16px] shrink-0">{m.is_home ? "🏠" : "✈️"}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-ui text-[13px] text-t-primary truncate">
+                      {m.is_home ? `vs ${m.opponent}` : `@ ${m.opponent}`}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="font-ui text-[11px] text-t-muted">{formatTime(m.match_date)}</span>
+                      <span
+                        className="font-ui text-[10px] uppercase tracking-wider"
+                        style={{ color: typeStyle.color }}
+                      >
+                        {typeStyle.label}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Legend */}
-      <div className="flex items-center gap-4 pt-2">
+      <div className="flex items-center gap-4 pt-2 flex-wrap">
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--color-info)" }} />
           <span className="font-ui text-[11px] text-t-muted">Entraînement</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--color-primary)" }} />
-          <span className="font-ui text-[11px] text-t-muted">Match</span>
+          <span className="font-ui text-[11px] text-t-muted">Championnat</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--color-warning)" }} />
-          <span className="font-ui text-[11px] text-t-muted">Événement</span>
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--color-info)", opacity: 0.5 }} />
+          <span className="font-ui text-[11px] text-t-muted">Amical</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#FFB800" }} />
+          <span className="font-ui text-[11px] text-t-muted">Coupe</span>
         </div>
       </div>
     </div>

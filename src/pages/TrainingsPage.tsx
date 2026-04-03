@@ -1,8 +1,8 @@
-import { useMemo } from "react";
-import { List, CalendarDays } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { List, CalendarDays, ChevronDown, ChevronUp } from "lucide-react";
 import { useActiveTeam } from "@/contexts/TeamContext";
 import { useTrainings, useCreateTraining, useTrainingsAttendanceCounts } from "@/hooks/useTrainings";
+import { useMatchesByOrg } from "@/hooks/useMatches";
 import { useToast } from "@/hooks/use-toast";
 import TrainingCard from "@/components/trainings/TrainingCard";
 import TrainingCalendarView from "@/components/trainings/TrainingCalendarView";
@@ -17,22 +17,43 @@ export default function TrainingsPage() {
   const createTraining = useCreateTraining(teamId, activeTeam?.season_id);
   const trainingIds = useMemo(() => trainings.map((t) => t.id), [trainings]);
   const { data: attendanceCounts = {} } = useTrainingsAttendanceCounts(trainingIds);
+  const { data: matches = [] } = useMatchesByOrg(activeTeam?.organization_id);
 
   const [view, setView] = useState<ViewMode>("list");
+  const [showPast, setShowPast] = useState(false);
 
-  const upcoming = useMemo(
-    () => trainings
-      .filter((t) => t.status === "scheduled")
-      .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at)),
-    [trainings]
-  );
+  const inProgress = useMemo(() => {
+    const now = Date.now();
+    return trainings
+      .filter((t) => {
+        if (t.status === "cancelled" || t.status === "completed") return false;
+        const at = new Date(t.scheduled_at).getTime();
+        return at - 30 * 60 * 1000 <= now && now <= at + 2 * 60 * 60 * 1000;
+      })
+      .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
+  }, [trainings]);
 
-  const past = useMemo(
-    () => trainings
-      .filter((t) => t.status === "completed" || t.status === "cancelled")
-      .sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at)),
-    [trainings]
-  );
+  const upcoming = useMemo(() => {
+    const now = Date.now();
+    return trainings
+      .filter((t) => {
+        if (t.status === "cancelled" || t.status === "completed") return false;
+        const at = new Date(t.scheduled_at).getTime();
+        return at > now + 2 * 60 * 60 * 1000;
+      })
+      .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
+  }, [trainings]);
+
+  const past = useMemo(() => {
+    const now = Date.now();
+    return trainings
+      .filter((t) => {
+        if (t.status === "cancelled" || t.status === "completed") return true;
+        const at = new Date(t.scheduled_at).getTime();
+        return at + 2 * 60 * 60 * 1000 < now;
+      })
+      .sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at));
+  }, [trainings]);
 
   const handleAddSession = async (data: { date: string; time: string; location: string; notes: string }) => {
     try {
@@ -92,6 +113,32 @@ export default function TrainingsPage() {
         </div>
       ) : view === "list" ? (
         <div className="space-y-8">
+          {/* En cours */}
+          {inProgress.length > 0 && (
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 px-1">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-warning)] opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--color-warning)]" />
+                </span>
+                <h2 className="font-ui text-[11px] text-[var(--color-warning)] uppercase tracking-wider">
+                  En cours
+                </h2>
+              </div>
+              <div className="space-y-2">
+                {inProgress.map((t) => (
+                  <TrainingCard
+                    key={t.id}
+                    training={t}
+                    presentCount={attendanceCounts[t.id]?.present}
+                    absentCount={attendanceCounts[t.id]?.absent}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* À venir */}
           {upcoming.length > 0 && (
             <section className="space-y-3">
               <h2 className="font-ui text-[11px] text-t-muted uppercase tracking-wider px-1">
@@ -110,21 +157,33 @@ export default function TrainingsPage() {
             </section>
           )}
 
+          {/* Terminés — accordion */}
           {past.length > 0 && (
             <section className="space-y-3">
-              <h2 className="font-ui text-[11px] text-t-muted uppercase tracking-wider px-1">
-                Passées ({past.length})
-              </h2>
-              <div className="space-y-2">
-                {past.map((t) => (
-                  <TrainingCard
-                    key={t.id}
-                    training={t}
-                    presentCount={attendanceCounts[t.id]?.present}
-                    absentCount={attendanceCounts[t.id]?.absent}
-                  />
-                ))}
-              </div>
+              <button
+                onClick={() => setShowPast((p) => !p)}
+                className="flex items-center gap-2 w-full px-1 cursor-pointer group"
+              >
+                <h2 className="font-ui text-[11px] text-t-muted uppercase tracking-wider group-hover:text-t-secondary transition-colors">
+                  Terminés ({past.length})
+                </h2>
+                {showPast
+                  ? <ChevronUp className="h-3.5 w-3.5 text-t-muted ml-auto" />
+                  : <ChevronDown className="h-3.5 w-3.5 text-t-muted ml-auto" />
+                }
+              </button>
+              {showPast && (
+                <div className="space-y-2">
+                  {past.map((t) => (
+                    <TrainingCard
+                      key={t.id}
+                      training={t}
+                      presentCount={attendanceCounts[t.id]?.present}
+                      absentCount={attendanceCounts[t.id]?.absent}
+                    />
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
@@ -136,7 +195,7 @@ export default function TrainingsPage() {
           )}
         </div>
       ) : (
-        <TrainingCalendarView trainings={trainings} />
+        <TrainingCalendarView trainings={trainings} matches={matches} />
       )}
     </div>
   );

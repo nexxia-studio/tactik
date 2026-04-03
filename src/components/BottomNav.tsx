@@ -1,12 +1,11 @@
 import { useLocation, Link } from "react-router-dom";
-import { Home, UserCheck, Dumbbell, ClipboardList, MessageSquare, Menu } from "lucide-react";
+import { Home, UserCheck, Dumbbell, ClipboardList, Menu } from "lucide-react";
 
 const items = [
   { label: "Dashboard",    path: "/dashboard",     icon: Home,          elevated: false },
   { label: "Présence",     path: "/joueurs",        icon: UserCheck,     elevated: false },
   { label: "Entraînement", path: "/entrainements",  icon: Dumbbell,      elevated: true  },
   { label: "Compo",        path: "/composition",    icon: ClipboardList, elevated: false },
-  { label: "Messages",     path: "/communication",  icon: MessageSquare, elevated: false },
   { label: "Plus",         path: "/plus",           icon: Menu,          elevated: false },
 ];
 
@@ -33,7 +32,6 @@ export function BottomNav() {
                 className="relative flex flex-col items-center flex-1"
                 style={{ marginTop: "-18px" }}
               >
-                {/* Elevated circle */}
                 <div
                   className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg border-2 transition-colors ${
                     active

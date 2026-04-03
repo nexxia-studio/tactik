@@ -179,9 +179,9 @@ export default function CalendarPage() {
     [matches]
   );
 
-  // Accordéon: open by default when few upcoming matches (<5)
-  const [upcomingOpen, setUpcomingOpen] = useState<boolean | null>(null);
-  const isUpcomingOpen = upcomingOpen ?? upcomingMatches.length < 5;
+  // Accordéon: always closed by default — user opens manually
+  const [upcomingOpen, setUpcomingOpen] = useState(false);
+  const isUpcomingOpen = upcomingOpen;
 
   // For "played"/"upcoming" filter tabs
   const filtered = useMemo(() => {

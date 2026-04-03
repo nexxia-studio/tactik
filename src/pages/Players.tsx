@@ -89,20 +89,20 @@ export default function Players() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex items-center justify-between gap-3 min-w-0">
+        <div className="min-w-0">
           <h1 className="font-display text-t-primary leading-none" style={{ fontSize: "var(--text-h1)" }}>
             JOUEURS
           </h1>
-          <p className="text-t-secondary font-ui text-[var(--text-small)] mt-2">
+          <p className="text-t-secondary font-ui text-[var(--text-small)] mt-1 truncate">
             {players?.length ?? 0} joueurs dans l'effectif
           </p>
         </div>
         <button
           onClick={() => { setEditingPlayer(null); setDialogOpen(true); }}
           disabled={!selectedTeamId}
-          className="flex items-center gap-2 font-ui text-[11px] font-semibold tracking-wider uppercase
-                     px-4 py-2.5 rounded-lg bg-primary text-primary-text
+          className="flex items-center gap-1.5 font-ui text-[11px] font-semibold tracking-wider uppercase
+                     px-3 py-2 rounded-lg bg-primary text-primary-text
                      hover:opacity-90 active:scale-[0.98] transition-all
                      disabled:opacity-50 cursor-pointer shrink-0"
         >

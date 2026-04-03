@@ -132,13 +132,13 @@ export default function CommunicationPage() {
   };
 
   return (
-    <div className="space-y-6 pb-24 lg:pb-0">
+    <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="font-display text-t-primary leading-none uppercase" style={{ fontSize: "var(--text-h1)" }}>
+      <div className="min-w-0">
+        <h1 className="font-display text-t-primary leading-none truncate" style={{ fontSize: "clamp(20px, 5vw, 40px)" }}>
           COMMUNICATION
         </h1>
-        <p className="text-t-muted font-ui text-[var(--text-small)] mt-2 italic">
+        <p className="text-t-muted font-ui text-[var(--text-small)] mt-2 italic truncate">
           Convocations & messages équipe
         </p>
       </div>

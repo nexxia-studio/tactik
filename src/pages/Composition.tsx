@@ -216,16 +216,16 @@ export default function Composition() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 lg:pb-0">
       {/* Header */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 min-w-0">
+          <div className="min-w-0">
             <h1 className="font-display text-t-primary leading-none" style={{ fontSize: "var(--text-h1)" }}>
               COMPOSITION
             </h1>
-            <p className="text-t-secondary font-ui text-[var(--text-small)] mt-2">
-              Composition FUT — Clique pour composer ton XI.
+            <p className="text-t-secondary font-ui text-[var(--text-small)] mt-2 truncate">
+              Clique sur un joueur pour le placer
             </p>
           </div>
 
@@ -240,7 +240,7 @@ export default function Composition() {
               </span>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {FORMATION_KEYS.map((key) => (
               <button
                 key={key}
@@ -259,7 +259,7 @@ export default function Composition() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-w-0">
         {/* Pitch + save button */}
         <div className="lg:col-span-2 space-y-4">
           <PitchView

@@ -1,23 +1,23 @@
 import { Link } from "react-router-dom";
 import {
-  Users,
   Trophy,
   Banknote,
   BarChart3,
   Swords,
   Shield,
   Settings,
+  MessageSquare,
   ChevronRight,
 } from "lucide-react";
 
 const sections = [
-  { label: "Joueurs",       path: "/joueurs",        icon: Users,    desc: "Effectif & profils" },
-  { label: "Classement",    path: "/classement",     icon: Trophy,   desc: "Table de la division" },
-  { label: "Calendrier",    path: "/calendrier",     icon: Swords,   desc: "Matchs & résultats" },
-  { label: "Statistiques",  path: "/statistiques",   icon: BarChart3, desc: "Performances individuelles" },
-  { label: "Équipe",        path: "/equipe",         icon: Shield,   desc: "Infos du club" },
-  { label: "Amendes",       path: "/amendes",        icon: Banknote, desc: "Cagnotte & amendes" },
-  { label: "Admin",         path: "/admin",          icon: Settings, desc: "Paramètres avancés" },
+  { label: "Communication", path: "/communication",  icon: MessageSquare, desc: "Convocations & messages" },
+  { label: "Classement",    path: "/classement",     icon: Trophy,        desc: "Table de la division" },
+  { label: "Calendrier",    path: "/calendrier",     icon: Swords,        desc: "Matchs & résultats" },
+  { label: "Statistiques",  path: "/statistiques",   icon: BarChart3,     desc: "Performances individuelles" },
+  { label: "Équipe",        path: "/equipe",         icon: Shield,        desc: "Infos du club" },
+  { label: "Amendes",       path: "/amendes",        icon: Banknote,      desc: "Cagnotte & amendes" },
+  { label: "Admin",         path: "/admin",          icon: Settings,      desc: "Paramètres avancés" },
 ];
 
 export default function MorePage() {

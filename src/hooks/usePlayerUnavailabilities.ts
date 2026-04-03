@@ -34,7 +34,7 @@ export function usePlayerUnavailabilities(playerId: string | undefined) {
 export function useActiveUnavailabilities(teamId: string | undefined, date: string) {
   return useQuery({
     queryKey: ["player-unavailabilities", "active", teamId, date],
-    enabled: !!teamId,
+    enabled: !!teamId && !!date,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("player_unavailabilities")

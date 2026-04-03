@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useActiveTeam } from "@/contexts/TeamContext";
 import { usePlayers } from "@/hooks/usePlayers";
 import { useMatches } from "@/hooks/useMatches";
+import { useActiveUnavailabilities } from "@/hooks/usePlayerUnavailabilities";
 import type { Player } from "@/hooks/usePlayers";
 
 const MAX_SUBSTITUTES = 4;
@@ -88,10 +89,30 @@ export default function Composition() {
   const isReadonly = selectedMatch?.played ?? false;
   const isFriendly = selectedMatch?.type === "friendly";
 
+  const selectedMatchDateISO = selectedMatch?.date ?? "";
+  const { data: activeUnavailabilities = [] } = useActiveUnavailabilities(teamId, selectedMatchDateISO);
+  const dbUnavailableIds = useMemo(
+    () => new Set(activeUnavailabilities.map((u) => u.player_id)),
+    [activeUnavailabilities]
+  );
+  // Stable key to detect actual changes in the unavailable set
+  const dbUnavailableKey = useMemo(
+    () => activeUnavailabilities.map((u) => u.player_id).sort().join(","),
+    [activeUnavailabilities]
+  );
+
   const [assignedIds, setAssignedIds] = useState<(string | null)[]>([]);
   const [substituteIds, setSubstituteIds] = useState<string[]>([]);
   const [playerStatuses, setPlayerStatuses] = useState<Record<string, PlayerStatus>>({});
   const [initialized, setInitialized] = useState(false);
+
+  // When DB-unavailable set changes, kick those players off pitch and bench
+  useEffect(() => {
+    if (!dbUnavailableKey) return;
+    setAssignedIds((prev) => prev.map((id) => (id && dbUnavailableIds.has(id) ? null : id)));
+    setSubstituteIds((prev) => prev.filter((id) => !dbUnavailableIds.has(id)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbUnavailableKey]);
 
   // Initialize state from real players on first load
   useEffect(() => {
@@ -109,8 +130,11 @@ export default function Composition() {
   }, [futPlayers, initialized, formation.positions.length]);
 
   const playersWithStatus = useMemo(
-    () => futPlayers.map((p) => ({ ...p, status: playerStatuses[p.id] ?? p.status })),
-    [futPlayers, playerStatuses]
+    () => futPlayers.map((p) => {
+      const manualStatus = playerStatuses[p.id] ?? p.status;
+      return { ...p, status: (dbUnavailableIds.has(p.id) ? "injured" : manualStatus) as PlayerStatus };
+    }),
+    [futPlayers, playerStatuses, dbUnavailableIds]
   );
 
   const playerMap = useMemo(() => new Map(playersWithStatus.map((p) => [p.id, p])), [playersWithStatus]);

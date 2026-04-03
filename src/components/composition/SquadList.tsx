@@ -356,7 +356,7 @@ export function SquadList({
 
         {renderSection("Remplaçants", substitutes, "substitute")}
         {renderSection("Non sélectionnés", nonSelected, "non-selected")}
-        {renderSection("Blessés / Suspendus / Indisponibles", unavailablePlayers, "unavailable")}
+        {renderSection("Blessés", unavailablePlayers, "unavailable")}
       </div>
     </div>
   );

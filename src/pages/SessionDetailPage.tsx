@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, MapPin, Clock, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save, MapPin, Clock, CheckCircle2, Lock } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useActiveTeam } from "@/contexts/TeamContext";
@@ -11,6 +11,7 @@ import {
   useUpdateTraining,
   useUpsertAttendance,
 } from "@/hooks/useTrainings";
+import { useActiveUnavailabilities } from "@/hooks/usePlayerUnavailabilities";
 import { useToast } from "@/hooks/use-toast";
 
 type AttendanceStatus = "present" | "late" | "absent" | "excused";
@@ -57,6 +58,15 @@ export default function SessionDetailPage() {
 
   const currentNotes = notes !== null ? notes : (training?.notes ?? "");
 
+  const sessionDateISO = training?.scheduled_at
+    ? new Date(training.scheduled_at).toISOString().split("T")[0]
+    : "";
+  const { data: activeUnavailabilities = [] } = useActiveUnavailabilities(teamId, sessionDateISO);
+  const unavailablePlayerIds = useMemo(
+    () => new Set(activeUnavailabilities.map((u) => u.player_id)),
+    [activeUnavailabilities]
+  );
+
   // Merge teamPlayers with existing attendance records
   const playerAttendance = useMemo(() => {
     const map = new Map(attendanceRecords.map((a) => [a.player_id, a.status as AttendanceStatus]));
@@ -65,8 +75,18 @@ export default function SessionDetailPage() {
       full_name: p.full_name,
       shirt_number: p.shirt_number,
       status: map.get(p.id) ?? null,
+      isUnavailable: unavailablePlayerIds.has(p.id),
     }));
-  }, [teamPlayers, attendanceRecords]);
+  }, [teamPlayers, attendanceRecords, unavailablePlayerIds]);
+
+  const availableAttendance = useMemo(
+    () => playerAttendance.filter((p) => !p.isUnavailable),
+    [playerAttendance]
+  );
+  const unavailableAttendance = useMemo(
+    () => playerAttendance.filter((p) => p.isUnavailable),
+    [playerAttendance]
+  );
 
   const attStats = useMemo(() => {
     const withStatus = playerAttendance.filter((p) => p.status !== null);
@@ -80,10 +100,17 @@ export default function SessionDetailPage() {
     return { present, late, absent, excused, total, attended, rate };
   }, [playerAttendance]);
 
-  const handleAttendanceChange = async (player_id: string, current: AttendanceStatus | null, next: AttendanceStatus) => {
+  const handleAttendanceChange = async (
+    player_id: string,
+    current: AttendanceStatus | null,
+    next: AttendanceStatus,
+    playerIsUnavailable?: boolean
+  ) => {
     if (!id) return;
-    // clicking same status again deselects — we just update to the new value
     if (current === next) return;
+    if (playerIsUnavailable && (next === "present" || next === "late")) {
+      if (!window.confirm("Ce joueur est déclaré indisponible. Forcer quand même sa présence ?")) return;
+    }
     try {
       await upsertAttendance.mutateAsync({ training_id: id, player_id, status: next });
     } catch (err: any) {
@@ -225,7 +252,7 @@ export default function SessionDetailPage() {
           )}
 
           <div className="space-y-1">
-            {playerAttendance.map((att) => {
+            {availableAttendance.map((att) => {
               const initials = att.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
               return (
                 <div
@@ -264,6 +291,62 @@ export default function SessionDetailPage() {
               );
             })}
           </div>
+
+          {unavailableAttendance.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center gap-1.5 px-1">
+                <Lock className="h-3 w-3 text-[var(--color-danger)]" />
+                <h3 className="font-ui text-[11px] text-[var(--color-danger)] uppercase tracking-wider">
+                  Absents / Indisponibles ({unavailableAttendance.length})
+                </h3>
+              </div>
+              <div className="space-y-1">
+                {unavailableAttendance.map((att) => {
+                  const initials = att.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+                  return (
+                    <div
+                      key={att.player_id}
+                      className="bg-[rgba(255,59,48,0.05)] border border-[rgba(255,59,48,0.2)] rounded-xl px-4 py-2.5 flex items-center gap-3 opacity-80"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-bg-surface-2 flex items-center justify-center shrink-0">
+                        <span className="font-ui text-[11px] text-t-muted">{initials}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-ui text-[13px] text-t-primary truncate">{att.full_name}</p>
+                        <div className="flex items-center gap-1.5">
+                          {att.shirt_number != null && (
+                            <span className="font-ui text-[11px] text-t-muted">#{att.shirt_number}</span>
+                          )}
+                          <span className="font-ui text-[10px] text-[var(--color-danger)] uppercase tracking-wider">
+                            Indisponible
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        {STATUS_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => handleAttendanceChange(att.player_id, att.status as AttendanceStatus | null, opt.value, true)}
+                            className={`w-7 h-7 rounded-md flex items-center justify-center text-[12px] transition-all cursor-pointer border ${
+                              att.status === opt.value
+                                ? "border-transparent"
+                                : "border-transparent opacity-30 hover:opacity-70"
+                            }`}
+                            style={{
+                              backgroundColor: att.status === opt.value ? `${opt.color}20` : "transparent",
+                            }}
+                            title={opt.label}
+                          >
+                            {opt.emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-4 gap-2">
             {[

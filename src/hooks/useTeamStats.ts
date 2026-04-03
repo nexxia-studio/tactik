@@ -23,16 +23,29 @@ export interface TeamStatsData {
   playerStats: Record<string, PlayerStat>;
 }
 
-export function useTeamStats(teamId: string | undefined) {
+export function useTeamStats(teamId: string | undefined, organizationId?: string | undefined) {
   return useQuery({
-    queryKey: ["team-stats", teamId],
+    queryKey: ["team-stats", teamId, organizationId],
     enabled: !!teamId,
     queryFn: async (): Promise<TeamStatsData> => {
+      // Resolve VIB team IDs (same pattern as useDashboard/useMatchesByOrg)
+      let matchTeamIds: string[] = [teamId!];
+      if (organizationId) {
+        const { data: vibTeams } = await supabase
+          .from("teams")
+          .select("id")
+          .eq("organization_id", organizationId)
+          .like("external_api_id", "%:%");
+        if (vibTeams?.length) {
+          matchTeamIds = vibTeams.map((t) => t.id);
+        }
+      }
+
       // 1. Completed matches with scores
       const { data: matches, error: matchesErr } = await supabase
         .from("matches")
         .select("id, is_home, score_home, score_away, match_date")
-        .eq("team_id", teamId!)
+        .in("team_id", matchTeamIds)
         .eq("status", "completed")
         .not("score_home", "is", null)
         .not("score_away", "is", null)

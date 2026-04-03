@@ -5,9 +5,9 @@ import { TeamStatsOverview } from "@/components/stats/TeamStatsOverview";
 import { PlayerStatsTable } from "@/components/stats/PlayerStatsTable";
 
 export default function Statistics() {
-  const { activeTeamId: teamId } = useActiveTeam();
+  const { activeTeamId: teamId, activeTeam } = useActiveTeam();
   const { data: players, isLoading: playersLoading } = usePlayers(teamId);
-  const { data: teamStats, isLoading: statsLoading } = useTeamStats(teamId);
+  const { data: teamStats, isLoading: statsLoading } = useTeamStats(teamId, activeTeam?.organization_id);
 
   const isLoading = playersLoading || statsLoading || !teamId;
 

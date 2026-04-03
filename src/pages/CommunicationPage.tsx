@@ -69,7 +69,15 @@ export default function CommunicationPage() {
           isUnavailable: unavailableIds.has(p.id),
         };
       })
-      .sort((a, b) => a.jersey_number - b.jersey_number);
+      .sort((a, b) => {
+        // Unavailable always last
+        if (a.isUnavailable !== b.isUnavailable) return a.isUnavailable ? 1 : -1;
+        // Within group: shirt_number ASC, null last
+        if (a.jersey_number === 0 && b.jersey_number === 0) return 0;
+        if (a.jersey_number === 0) return 1;
+        if (b.jersey_number === 0) return -1;
+        return a.jersey_number - b.jersey_number;
+      });
   }, [teamPlayers, unavailableIds]);
 
   // Future matches sorted ASC

@@ -149,8 +149,10 @@ export function useUpsertAttendance() {
         .upsert({ training_id, player_id, status }, { onConflict: "training_id,player_id" });
       if (error) throw error;
     },
-    onSuccess: (_, { training_id }) =>
-      qc.invalidateQueries({ queryKey: ["training_attendance", training_id] }),
+    onSuccess: (_, { training_id }) => {
+      qc.invalidateQueries({ queryKey: ["training_attendance", training_id] });
+      qc.invalidateQueries({ queryKey: ["trainings_attendance_counts"] });
+    },
   });
 }
 
@@ -165,7 +167,9 @@ export function useDeleteAttendance() {
         .eq("player_id", player_id);
       if (error) throw error;
     },
-    onSuccess: (_, { training_id }) =>
-      qc.invalidateQueries({ queryKey: ["training_attendance", training_id] }),
+    onSuccess: (_, { training_id }) => {
+      qc.invalidateQueries({ queryKey: ["training_attendance", training_id] });
+      qc.invalidateQueries({ queryKey: ["trainings_attendance_counts"] });
+    },
   });
 }

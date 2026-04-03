@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Check, X, Minus } from "lucide-react";
 import { useActiveTeam } from "@/contexts/TeamContext";
 import { usePlayers } from "@/hooks/usePlayers";
-import { useTrainings, useTrainingAttendance, useUpsertAttendance } from "@/hooks/useTrainings";
+import { useTrainings, useTrainingAttendance, useUpsertAttendance, useDeleteAttendance } from "@/hooks/useTrainings";
 import { useActiveUnavailabilities } from "@/hooks/usePlayerUnavailabilities";
 import type { Player } from "@/hooks/usePlayers";
 import { useToast } from "@/hooks/use-toast";
@@ -140,11 +140,11 @@ export default function PresencePage() {
   const { data: players = [] } = usePlayers(teamId);
   const { data: trainings = [] } = useTrainings(teamId);
   const upsertAttendance = useUpsertAttendance();
+  const deleteAttendance = useDeleteAttendance();
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [statuses, setStatuses] = useState<Record<string, AttendanceStatus>>({});
-  const [saving, setSaving] = useState(false);
 
   const weekDays = useMemo(() => getWeekDays(weekOffset), [weekOffset]);
 
@@ -187,30 +187,24 @@ export default function PresencePage() {
     setStatuses(map);
   }, [attendanceRecords, unavailablePlayerIds, selectedTraining?.id]);
 
-  const togglePlayer = (playerId: string) => {
-    setStatuses((prev) => ({ ...prev, [playerId]: nextStatus(prev[playerId] ?? null) }));
-  };
+  const togglePlayer = async (playerId: string) => {
+    const current = statuses[playerId] ?? null;
+    const next = nextStatus(current);
 
-  const handleSave = async () => {
+    // Optimistic update
+    setStatuses((prev) => ({ ...prev, [playerId]: next }));
+
     if (!selectedTraining) return;
-    setSaving(true);
     try {
-      // Upsert only players with a non-null status
-      const toSave = Object.entries(statuses).filter(([, s]) => s !== null);
-      await Promise.all(
-        toSave.map(([player_id, status]) =>
-          upsertAttendance.mutateAsync({
-            training_id: selectedTraining.id,
-            player_id,
-            status: status!,
-          })
-        )
-      );
-      toast({ title: "Présence enregistrée ✓" });
+      if (next === null) {
+        await deleteAttendance.mutateAsync({ training_id: selectedTraining.id, player_id: playerId });
+      } else {
+        await upsertAttendance.mutateAsync({ training_id: selectedTraining.id, player_id: playerId, status: next });
+      }
     } catch (err: any) {
+      // Revert on error
+      setStatuses((prev) => ({ ...prev, [playerId]: current }));
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -311,33 +305,22 @@ export default function PresencePage() {
 
       {/* Player list */}
       {selectedTraining && (
-        <>
-          {players.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="font-ui text-[14px] text-t-secondary">Aucun joueur dans l'effectif</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {players.map((player) => (
-                <PlayerPresenceCard
-                  key={player.id}
-                  player={player}
-                  status={statuses[player.id] ?? null}
-                  onToggle={() => togglePlayer(player.id)}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Save button */}
-          <button
-            onClick={handleSave}
-            disabled={saving || totalPlayers === 0}
-            className="w-full py-3.5 rounded-xl font-ui text-[13px] uppercase tracking-wider bg-primary text-primary-text hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
-          >
-            {saving ? "Enregistrement…" : "Valider la présence"}
-          </button>
-        </>
+        players.length === 0 ? (
+          <div className="py-12 text-center">
+            <p className="font-ui text-[14px] text-t-secondary">Aucun joueur dans l'effectif</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {players.map((player) => (
+              <PlayerPresenceCard
+                key={player.id}
+                player={player}
+                status={statuses[player.id] ?? null}
+                onToggle={() => togglePlayer(player.id)}
+              />
+            ))}
+          </div>
+        )
       )}
     </div>
   );

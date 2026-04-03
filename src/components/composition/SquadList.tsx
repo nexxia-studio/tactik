@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { type FUTPlayer, type PlayerStatus, type PositionCategory, getPositionCategory } from "./mockPlayers";
 import { ShieldAlert, Cross, Ban, UserPlus, UserMinus, ArrowRightLeft } from "lucide-react";
 import {
@@ -92,7 +92,7 @@ function PlayerRow({
           : isAssigned
             ? "bg-primary-dim border border-primary-border hover:bg-primary-dim/70 cursor-pointer"
             : isSubstitute
-              ? "bg-accent/10 border border-accent/30 hover:bg-accent/20 cursor-pointer"
+              ? "bg-info/10 border border-info/30 hover:bg-info/20 cursor-pointer"
               : "bg-bg-surface-2 border border-b-subtle hover:bg-bg-surface-3 cursor-pointer"
       } ${isDraggable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
@@ -135,7 +135,7 @@ function PlayerRow({
           {isAssigned ? (
             <UserMinus className="h-3.5 w-3.5 text-[var(--color-danger)]" />
           ) : isSubstitute ? (
-            <ArrowRightLeft className="h-3.5 w-3.5 text-accent" />
+            <ArrowRightLeft className="h-3.5 w-3.5 text-info" />
           ) : (
             <UserPlus className="h-3.5 w-3.5 text-primary" />
           )}
@@ -283,7 +283,7 @@ export function SquadList({
         <h4 className="font-display text-[11px] text-t-muted uppercase tracking-wider mb-1.5 px-1">
           {title}
           {mode === "substitute" && (
-            <span className="ml-1 text-accent">
+            <span className="ml-1 text-info">
               ({players.length}/{isFriendly ? "∞" : maxSubstitutes})
             </span>
           )}

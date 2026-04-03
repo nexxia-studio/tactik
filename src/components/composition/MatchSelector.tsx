@@ -26,7 +26,7 @@ export function MatchSelector({ selectedMatchId, onSelect, matches }: Props) {
 
   return (
     <Select value={selectedMatchId ?? ""} onValueChange={onSelect}>
-      <SelectTrigger className="w-[240px] bg-bg-surface-2 border-b-subtle font-ui text-[var(--text-body)]">
+      <SelectTrigger className="w-full sm:w-[240px] bg-bg-surface-2 border-b-subtle font-ui text-[var(--text-body)]">
         <SelectValue placeholder="Sélectionner un match" />
       </SelectTrigger>
       <SelectContent className="bg-bg-surface-2 border-b-subtle">

@@ -48,20 +48,17 @@ export default function TrainingsPage() {
   return (
     <div className="space-y-6 pb-24 lg:pb-0">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-t-primary leading-none uppercase" style={{ fontSize: "var(--text-h1)" }}>
-            ENTRAÎNEMENTS
-          </h1>
-          <p className="text-t-secondary font-ui text-[var(--text-small)] mt-2">
-            {trainings.length} séance{trainings.length !== 1 ? "s" : ""} cette saison
-          </p>
-        </div>
-        <NewSessionDialog onAdd={handleAddSession} />
+      <div className="min-w-0">
+        <h1 className="font-display text-t-primary leading-none truncate" style={{ fontSize: "clamp(20px, 5vw, 40px)" }}>
+          ENTRAÎNEMENTS
+        </h1>
+        <p className="text-t-secondary font-ui text-[var(--text-small)] mt-1">
+          {trainings.length} séance{trainings.length !== 1 ? "s" : ""} cette saison
+        </p>
       </div>
 
-      {/* View toggle */}
-      <div className="flex gap-1.5">
+      {/* View toggle + action button on same row */}
+      <div className="flex items-center gap-1.5">
         {([
           { key: "list" as ViewMode, label: "Liste", icon: List },
           { key: "calendar" as ViewMode, label: "Calendrier", icon: CalendarDays },
@@ -79,6 +76,9 @@ export default function TrainingsPage() {
             {v.label}
           </button>
         ))}
+        <div className="ml-auto">
+          <NewSessionDialog onAdd={handleAddSession} compact />
+        </div>
       </div>
 
       {/* Content */}

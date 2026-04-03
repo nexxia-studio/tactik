@@ -219,18 +219,15 @@ export default function Composition() {
     <div className="space-y-6 pb-20 lg:pb-0">
       {/* Header */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 min-w-0">
-          <div className="min-w-0">
-            <h1 className="font-display text-t-primary leading-none" style={{ fontSize: "var(--text-h1)" }}>
-              COMPOSITION
-            </h1>
-            <p className="text-t-secondary font-ui text-[var(--text-small)] mt-2 truncate">
-              Clique sur un joueur pour le placer
-            </p>
-          </div>
-
-          <MatchSelector selectedMatchId={selectedMatchId} onSelect={setSelectedMatchId} matches={compositionMatches} />
+        <div>
+          <h1 className="font-display text-t-primary leading-none" style={{ fontSize: "var(--text-h1)" }}>
+            COMPOSITION
+          </h1>
+          <p className="text-t-secondary font-ui text-[var(--text-small)] mt-2">
+            Sélectionne un match et compose ton XI
+          </p>
         </div>
+        <MatchSelector selectedMatchId={selectedMatchId} onSelect={setSelectedMatchId} matches={compositionMatches} />
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -259,7 +256,7 @@ export default function Composition() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-w-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Pitch + save button */}
         <div className="lg:col-span-2 space-y-4">
           <PitchView

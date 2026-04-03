@@ -30,10 +30,11 @@ interface NewSessionData {
 }
 
 interface NewSessionDialogProps {
+  compact?: boolean;
   onAdd: (data: NewSessionData) => void;
 }
 
-export default function NewSessionDialog({ onAdd }: NewSessionDialogProps) {
+export default function NewSessionDialog({ onAdd, compact = false }: NewSessionDialogProps) {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [hour, setHour] = useState(19);
@@ -64,9 +65,13 @@ export default function NewSessionDialog({ onAdd }: NewSessionDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
       <DialogTrigger asChild>
-        <button className="px-4 py-2 rounded-lg font-ui text-[13px] uppercase tracking-wide transition-all cursor-pointer bg-primary text-primary-text flex items-center gap-2 hover:opacity-90">
+        <button className="px-3 py-2 rounded-lg font-ui text-[12px] uppercase tracking-wide transition-all cursor-pointer bg-primary text-primary-text flex items-center gap-1.5 hover:opacity-90 shrink-0">
           <Plus className="h-4 w-4" />
-          Nouvelle séance
+          {compact ? (
+            <span className="hidden sm:inline">Nouvelle séance</span>
+          ) : (
+            <span>Nouvelle séance</span>
+          )}
         </button>
       </DialogTrigger>
       <DialogContent className="bg-bg-base border-b-subtle max-w-md">

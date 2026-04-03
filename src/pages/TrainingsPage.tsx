@@ -10,6 +10,12 @@ import NewSessionDialog from "@/components/trainings/NewSessionDialog";
 
 type ViewMode = "list" | "calendar";
 
+/** Parse an ISO timestamp to UTC ms — appends Z if no timezone suffix present */
+function toMs(iso: string): number {
+  if (!/Z$|[+-]\d{2}:\d{2}$/.test(iso)) return new Date(iso + "Z").getTime();
+  return new Date(iso).getTime();
+}
+
 export default function TrainingsPage() {
   const { toast } = useToast();
   const { activeTeamId: teamId, activeTeam } = useActiveTeam();
@@ -27,7 +33,7 @@ export default function TrainingsPage() {
     return trainings
       .filter((t) => {
         if (t.status === "cancelled" || t.status === "completed") return false;
-        const at = new Date(t.scheduled_at).getTime();
+        const at = toMs(t.scheduled_at);
         return at - 30 * 60 * 1000 <= now && now <= at + 2 * 60 * 60 * 1000;
       })
       .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
@@ -38,7 +44,7 @@ export default function TrainingsPage() {
     return trainings
       .filter((t) => {
         if (t.status === "cancelled" || t.status === "completed") return false;
-        const at = new Date(t.scheduled_at).getTime();
+        const at = toMs(t.scheduled_at);
         return at > now + 2 * 60 * 60 * 1000;
       })
       .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
@@ -49,7 +55,7 @@ export default function TrainingsPage() {
     return trainings
       .filter((t) => {
         if (t.status === "cancelled" || t.status === "completed") return true;
-        const at = new Date(t.scheduled_at).getTime();
+        const at = toMs(t.scheduled_at);
         return at + 2 * 60 * 60 * 1000 < now;
       })
       .sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at));

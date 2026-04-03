@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { type FUTPlayer, type PlayerStatus, type PositionCategory, getPositionCategory } from "./mockPlayers";
+import { type FUTPlayer, type PlayerStatus } from "./mockPlayers";
 import { ShieldAlert, Cross, Ban, UserPlus, UserMinus, ArrowRightLeft } from "lucide-react";
 import {
   ContextMenu,
@@ -23,14 +23,6 @@ interface Props {
   positionLabels: string[];
   isFriendly?: boolean;
 }
-
-const CATEGORY_ORDER: PositionCategory[] = ["GK", "DEF", "MID", "ATT"];
-const CATEGORY_LABELS: Record<PositionCategory, string> = {
-  GK: "Gardien",
-  DEF: "Défenseurs",
-  MID: "Milieux",
-  ATT: "Attaquants",
-};
 
 const STATUS_INFO = {
   injured: { label: "Blessé", icon: Cross, colorClass: "text-[var(--color-danger)]" },
@@ -208,14 +200,6 @@ export function SquadList({
     .filter((p) => !assignedSet.has(p.id) && !substituteSet.has(p.id))
     .sort((a, b) => getPositionRank(a.position) - getPositionRank(b.position));
 
-  const titulairesByCategory = new Map<PositionCategory, FUTPlayer[]>();
-  for (const cat of CATEGORY_ORDER) {
-    titulairesByCategory.set(
-      cat,
-      titulaires.filter((p) => getPositionCategory(p.position) === cat)
-    );
-  }
-
   const effectiveMaxSubs = isFriendly ? Infinity : maxSubstitutes;
 
   const handleSectionDragOver = (e: React.DragEvent, section: string) => {
@@ -346,14 +330,7 @@ export function SquadList({
       </p>
 
       <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
-        {CATEGORY_ORDER.map((cat) =>
-          renderSection(
-            CATEGORY_LABELS[cat],
-            titulairesByCategory.get(cat) || [],
-            "titulaire"
-          )
-        )}
-
+        {renderSection("Titulaires", titulaires, "titulaire")}
         {renderSection("Remplaçants", substitutes, "substitute")}
         {renderSection("Non sélectionnés", nonSelected, "non-selected")}
         {renderSection("Blessés", unavailablePlayers, "unavailable")}

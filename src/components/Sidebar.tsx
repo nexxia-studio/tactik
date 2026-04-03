@@ -8,6 +8,7 @@ import {
   Trophy,
   Shield,
   Dumbbell,
+  CheckSquare,
   Banknote,
   MessageSquare,
   Settings,
@@ -34,6 +35,7 @@ const mainNav = [
 
 const secondaryNav = [
   { label: "Entraînements", path: "/entrainements", icon: Dumbbell },
+  { label: "Présences",     path: "/presence",      icon: CheckSquare },
   { label: "Amendes", path: "/amendes", icon: Banknote },
   { label: "Communication", path: "/communication", icon: MessageSquare },
 ];

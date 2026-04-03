@@ -33,6 +33,7 @@ export function usePlayers(teamId?: string) {
         .from("team_members")
         .select("players(*)")
         .eq("team_id", teamId!)
+        .eq("role", "player")
         .not("player_id", "is", null)
         .order("players(full_name)");
 

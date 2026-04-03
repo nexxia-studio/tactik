@@ -3,7 +3,7 @@ import { Home, UserCheck, Dumbbell, ClipboardList, Menu } from "lucide-react";
 
 const items = [
   { label: "Dashboard",    path: "/dashboard",     icon: Home,          elevated: false },
-  { label: "Présence",     path: "/joueurs",        icon: UserCheck,     elevated: false },
+  { label: "Présence",     path: "/presence",       icon: UserCheck,     elevated: false },
   { label: "Entraînement", path: "/entrainements",  icon: Dumbbell,      elevated: true  },
   { label: "Compo",        path: "/composition",    icon: ClipboardList, elevated: false },
   { label: "Plus",         path: "/plus",           icon: Menu,          elevated: false },

@@ -20,6 +20,7 @@ import FinesPage from "@/pages/FinesPage";
 import CommunicationPage from "@/pages/CommunicationPage";
 import AdminPage from "@/pages/AdminPage";
 import MorePage from "@/pages/MorePage";
+import PresencePage from "@/pages/PresencePage";
 import Auth from "@/pages/Auth";
 import OnboardingClub from "@/pages/onboarding/OnboardingClub";
 import OnboardingPlan from "@/pages/onboarding/OnboardingPlan";
@@ -92,6 +93,16 @@ const App = () => (
                 <ProtectedRoute>
                   <AppLayout>
                     <Players />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/presence"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <PresencePage />
                   </AppLayout>
                 </ProtectedRoute>
               }

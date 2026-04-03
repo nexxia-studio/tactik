@@ -55,9 +55,9 @@ export function MatchSelector({ selectedMatchId, onSelect, matches }: Props) {
           </SelectGroup>
         )}
         {matches.length === 0 && (
-          <SelectItem value="" disabled className="font-ui text-t-muted text-[var(--text-body)]">
+          <div className="px-3 py-2 font-ui text-[var(--text-body)] text-t-muted text-center select-none">
             Aucun match planifié
-          </SelectItem>
+          </div>
         )}
       </SelectContent>
     </Select>

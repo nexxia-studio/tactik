@@ -27,10 +27,11 @@ function mapPositionToFUT(pos: string | null): string {
 }
 
 function mapPlayerToFUT(player: Player): FUTPlayer {
-  const parts = player.full_name.split(" ");
+  const name = player.full_name ?? "";
+  const parts = name.split(" ").filter(Boolean);
   return {
     id: player.id,
-    firstName: parts[0] ?? player.full_name,
+    firstName: parts[0] ?? name,
     lastName: parts.slice(1).join(" ") || "",
     position: mapPositionToFUT(player.position_preferred ?? null),
     jerseyNumber: player.shirt_number ?? 0,
@@ -258,7 +259,7 @@ export default function Composition() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Pitch + save button */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4 min-w-0">
           <PitchView
             formation={formation}
             players={assignedPlayers}

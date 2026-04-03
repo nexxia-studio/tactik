@@ -85,7 +85,7 @@ export function PitchView({ formation, players, onSwapSlots, onDropBenchPlayer, 
   }, [players]);
 
   return (
-    <div className="relative w-full" style={{ paddingBottom: "140%" }}>
+    <div className="relative w-full" style={{ aspectRatio: "5 / 7", minHeight: "320px" }}>
       {/* Pitch background */}
       <div className="absolute inset-0 rounded-xl overflow-hidden bg-[#1a3a1a] border border-b-subtle">
         {/* Field markings */}

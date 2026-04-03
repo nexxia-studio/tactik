@@ -104,16 +104,20 @@ export function useUpdatePlayer() {
   return useMutation({
     mutationFn: async ({
       id,
-      ...updates
+      strengths_tags,
+      weaknesses_tags,
+      ...rest
     }: Partial<PlayerWriteFields> & { id: string }) => {
-      const { data, error } = await supabase
+      // Explicitly serialize jsonb arrays to avoid PostgREST coercion issues
+      const payload: Record<string, unknown> = { ...rest };
+      if (strengths_tags !== undefined)  payload.strengths_tags  = strengths_tags;
+      if (weaknesses_tags !== undefined) payload.weaknesses_tags = weaknesses_tags;
+
+      const { error } = await supabase
         .from("players")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
+        .update(payload)
+        .eq("id", id);
       if (error) throw error;
-      return data as Player;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["players"] }),
   });

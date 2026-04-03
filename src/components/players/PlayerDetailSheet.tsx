@@ -15,10 +15,28 @@ import { UnavailabilityDialog } from "./UnavailabilityDialog";
 import { useToast } from "@/hooks/use-toast";
 
 const positionConfig: Record<string, { bg: string; text: string }> = {
-  Gardien:   { bg: "bg-[rgba(79,142,255,0.15)]",  text: "text-[var(--color-info)]"    },
-  Défenseur: { bg: "bg-[rgba(255,59,48,0.15)]",   text: "text-[var(--color-danger)]"  },
-  Milieu:    { bg: "bg-[rgba(255,214,10,0.15)]",  text: "text-[var(--color-warning)]" },
-  Attaquant: { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]" },
+  // Legacy simple values
+  "Gardien":          { bg: "bg-[rgba(79,142,255,0.15)]",  text: "text-[var(--color-info)]"    },
+  "Défenseur":        { bg: "bg-[rgba(255,59,48,0.15)]",   text: "text-[var(--color-danger)]"  },
+  "Milieu":           { bg: "bg-[rgba(255,214,10,0.15)]",  text: "text-[var(--color-warning)]" },
+  "Attaquant":        { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]" },
+  // Detailed positions
+  "Défenseur central":  { bg: "bg-[rgba(255,59,48,0.15)]",   text: "text-[var(--color-danger)]"  },
+  "Arrière droit":      { bg: "bg-[rgba(255,59,48,0.15)]",   text: "text-[var(--color-danger)]"  },
+  "Arrière gauche":     { bg: "bg-[rgba(255,59,48,0.15)]",   text: "text-[var(--color-danger)]"  },
+  "Milieu défensif":    { bg: "bg-[rgba(255,214,10,0.15)]",  text: "text-[var(--color-warning)]" },
+  "Milieu central":     { bg: "bg-[rgba(255,214,10,0.15)]",  text: "text-[var(--color-warning)]" },
+  "Milieu offensif":    { bg: "bg-[rgba(255,214,10,0.15)]",  text: "text-[var(--color-warning)]" },
+  "Ailier droit":       { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]" },
+  "Ailier gauche":      { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]" },
+  "Attaquant centre":   { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]" },
+  "Avant-centre":       { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]" },
+};
+
+const FOOT_LABELS: Record<string, string> = {
+  right: "Pied droit",
+  left:  "Pied gauche",
+  both:  "Les deux pieds",
 };
 
 const REASON_LABELS: Record<PlayerUnavailability["reason"], string> = {
@@ -154,6 +172,14 @@ export function PlayerDetailSheet({ player, open, onOpenChange, onEdit }: Player
                     </span>
                   </div>
                 )}
+                {player.foot_preferred && (
+                  <div className="flex items-center gap-3">
+                    <Star className="h-4 w-4 text-t-muted shrink-0" />
+                    <span className="font-ui text-[13px] text-t-secondary">
+                      {FOOT_LABELS[player.foot_preferred] ?? player.foot_preferred}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-3">
                   <Star className="h-4 w-4 text-t-muted shrink-0" />
                   <span className="font-ui text-[13px] text-t-secondary">
@@ -167,6 +193,62 @@ export function PlayerDetailSheet({ player, open, onOpenChange, onEdit }: Player
                   </span>
                 </div>
               </div>
+
+              {/* Postes alternatifs */}
+              {(player.position_alternative_1 || player.position_alternative_2) && (
+                <div className="pt-1 space-y-1.5">
+                  <p className="font-ui text-[10px] uppercase tracking-wider text-t-muted">Postes alternatifs</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[player.position_alternative_1, player.position_alternative_2]
+                      .filter(Boolean)
+                      .map((p) => {
+                        const c = positionConfig[p!] ?? { bg: "bg-bg-surface-1", text: "text-t-secondary" };
+                        return (
+                          <span
+                            key={p}
+                            className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-ui font-medium ${c.bg} ${c.text}`}
+                          >
+                            {p}
+                          </span>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* Forces */}
+              {(player.strengths_tags?.length ?? 0) > 0 && (
+                <div className="pt-1 space-y-1.5">
+                  <p className="font-ui text-[10px] uppercase tracking-wider text-t-muted">Forces</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {player.strengths_tags!.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-ui bg-[rgba(22,255,110,0.12)] border border-[rgba(22,255,110,0.3)] text-[var(--color-success)]"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Faiblesses */}
+              {(player.weaknesses_tags?.length ?? 0) > 0 && (
+                <div className="pt-1 space-y-1.5">
+                  <p className="font-ui text-[10px] uppercase tracking-wider text-t-muted">Faiblesses</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {player.weaknesses_tags!.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-ui bg-[rgba(255,59,48,0.10)] border border-[rgba(255,59,48,0.3)] text-[var(--color-danger)]"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Stats placeholder */}

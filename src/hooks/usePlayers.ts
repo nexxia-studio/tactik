@@ -10,8 +10,12 @@ export interface Player {
   avatar_url: string | null;
   birth_date: string | null;
   position_preferred: string | null;
+  position_alternative_1: string | null;
+  position_alternative_2: string | null;
   foot_preferred: string | null;
   shirt_number: number | null;
+  strengths_tags: string[] | null;
+  weaknesses_tags: string[] | null;
   xp_points: number;
   level: number;
   is_claimed: boolean;
@@ -58,16 +62,23 @@ export function useTeams() {
   });
 }
 
+export type PlayerWriteFields = {
+  full_name: string;
+  nickname: string | null;
+  avatar_url: string | null;
+  position_preferred: string | null;
+  position_alternative_1: string | null;
+  position_alternative_2: string | null;
+  foot_preferred: string | null;
+  shirt_number: number | null;
+  strengths_tags: string[];
+  weaknesses_tags: string[];
+};
+
 export function useAddPlayer(teamId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (playerData: {
-      full_name: string;
-      position_preferred: string | null;
-      shirt_number: number | null;
-      avatar_url: string | null;
-      nickname: string | null;
-    }) => {
+    mutationFn: async (playerData: PlayerWriteFields) => {
       // 1. Create the player record
       const { data: player, error: playerErr } = await supabase
         .from("players")
@@ -94,9 +105,7 @@ export function useUpdatePlayer() {
     mutationFn: async ({
       id,
       ...updates
-    }: Partial<Pick<Player, "full_name" | "position_preferred" | "shirt_number" | "avatar_url" | "nickname">> & {
-      id: string;
-    }) => {
+    }: Partial<PlayerWriteFields> & { id: string }) => {
       const { data, error } = await supabase
         .from("players")
         .update(updates)

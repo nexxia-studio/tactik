@@ -43,13 +43,7 @@ export default function Players() {
     return counts;
   }, [players]);
 
-  const handleSubmit = async (data: {
-    full_name: string;
-    position_preferred: string | null;
-    shirt_number: number | null;
-    avatar_url: string | null;
-    nickname: string | null;
-  }) => {
+  const handleSubmit = async (data: import("@/hooks/usePlayers").PlayerWriteFields) => {
     try {
       if (editingPlayer) {
         await updatePlayer.mutateAsync({ id: editingPlayer.id, ...data });

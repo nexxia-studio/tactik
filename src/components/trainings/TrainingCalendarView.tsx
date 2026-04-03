@@ -182,7 +182,7 @@ export default function TrainingCalendarView({ trainings, matches = [] }: Traini
               {icons.length > 0 && (
                 <div className="flex gap-0.5 flex-wrap justify-center">
                   {icons.slice(0, 3).map(({ Icon, color, key }) => (
-                    <Icon key={key} className="h-3 w-3" style={{ color }} />
+                    <Icon key={key} className="h-4 w-4" style={{ color }} />
                   ))}
                 </div>
               )}
@@ -261,7 +261,7 @@ export default function TrainingCalendarView({ trainings, matches = [] }: Traini
           { Icon: Star,     color: "#FFB800",              label: "Coupe"        },
         ].map(({ Icon, color, label }) => (
           <div key={label} className="flex items-center gap-1.5">
-            <Icon className="h-3 w-3" style={{ color }} />
+            <Icon className="h-3.5 w-3.5" style={{ color }} />
             <span className="font-ui text-[11px] text-t-muted">{label}</span>
           </div>
         ))}

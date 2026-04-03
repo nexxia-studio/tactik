@@ -7,10 +7,12 @@ import {
   Shield,
   Settings,
   MessageSquare,
+  Users,
   ChevronRight,
 } from "lucide-react";
 
 const sections = [
+  { label: "Joueurs",        path: "/joueurs",        icon: Users,         desc: "Effectif & fiches joueurs" },
   { label: "Communication", path: "/communication",  icon: MessageSquare, desc: "Convocations & messages" },
   { label: "Classement",    path: "/classement",     icon: Trophy,        desc: "Table de la division" },
   { label: "Calendrier",    path: "/calendrier",     icon: Swords,        desc: "Matchs & résultats" },

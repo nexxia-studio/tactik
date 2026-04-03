@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Check, X, Minus } from "lucide-react";
 import { useActiveTeam } from "@/contexts/TeamContext";
 import { usePlayers } from "@/hooks/usePlayers";
 import { useTrainings, useTrainingAttendance, useUpsertAttendance } from "@/hooks/useTrainings";
+import { useActiveUnavailabilities } from "@/hooks/usePlayerUnavailabilities";
 import type { Player } from "@/hooks/usePlayers";
 import { useToast } from "@/hooks/use-toast";
 
@@ -153,18 +154,38 @@ export default function PresencePage() {
     [trainings, selectedDate]
   );
 
+  // ISO date for the selected day (used for unavailability check)
+  const selectedDateISO = useMemo(
+    () => selectedDate.toISOString().slice(0, 10),
+    [selectedDate]
+  );
+
   // Load attendance records for this training
   const { data: attendanceRecords = [] } = useTrainingAttendance(selectedTraining?.id);
 
-  // Sync DB records → local status state when training changes
+  // Active unavailabilities on the selected date
+  const { data: activeUnavailabilities = [] } = useActiveUnavailabilities(teamId, selectedDateISO);
+  const unavailablePlayerIds = useMemo(
+    () => new Set(activeUnavailabilities.map((u) => u.player_id)),
+    [activeUnavailabilities]
+  );
+
+  // Sync DB records → local status state when training or date changes.
+  // Players with an active unavailability are pre-marked "absent" unless
+  // there's already a DB attendance record (coach override takes precedence).
   useEffect(() => {
     const map: Record<string, AttendanceStatus> = {};
+    // 1. Pre-fill from attendance records (DB is authoritative)
     attendanceRecords.forEach((a) => {
       if (a.status === "present" || a.status === "late") map[a.player_id] = "present";
       else map[a.player_id] = "absent";
     });
+    // 2. For players NOT yet in the map, auto-mark unavailable ones as absent
+    unavailablePlayerIds.forEach((pid) => {
+      if (!(pid in map)) map[pid] = "absent";
+    });
     setStatuses(map);
-  }, [attendanceRecords, selectedTraining?.id]);
+  }, [attendanceRecords, unavailablePlayerIds, selectedTraining?.id]);
 
   const togglePlayer = (playerId: string) => {
     setStatuses((prev) => ({ ...prev, [playerId]: nextStatus(prev[playerId] ?? null) }));

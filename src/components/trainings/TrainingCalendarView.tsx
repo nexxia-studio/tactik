@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Dumbbell, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Dumbbell, Trophy, Swords, Star, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Training } from "@/hooks/useTrainings";
 import type { Match } from "@/hooks/useMatches";
@@ -137,18 +137,24 @@ export default function TrainingCalendarView({ trainings, matches = [] }: Traini
           const hasEvents = dayTrainings.length > 0 || dayMatches.length > 0;
           const isSelected = selectedDay === day;
 
-          // Build dot list: 1 training dot + match dots by type (deduplicated)
-          const dots: { color: string; key: string }[] = [];
+          // Build icon list: 1 training icon + match icons by type (deduplicated)
+          type EventIcon = { Icon: React.ElementType; color: string; key: string };
+          const icons: EventIcon[] = [];
           if (dayTrainings.length > 0) {
-            dots.push({ color: "var(--color-info)", key: "training" });
+            icons.push({ Icon: Dumbbell, color: "var(--color-info)", key: "training" });
           }
           const seenTypes = new Set<string>();
+          const MATCH_ICONS: Record<string, React.ElementType> = {
+            championship: Trophy,
+            friendly:     Swords,
+            cup:          Star,
+          };
           for (const m of dayMatches) {
             const type = m.type ?? "friendly";
             if (!seenTypes.has(type)) {
               seenTypes.add(type);
               const style = MATCH_TYPE_STYLES[type] ?? MATCH_TYPE_STYLES.friendly;
-              dots.push({ color: style.color, key: `match-${type}` });
+              icons.push({ Icon: MATCH_ICONS[type] ?? Swords, color: style.color, key: `match-${type}` });
             }
           }
 
@@ -173,14 +179,10 @@ export default function TrainingCalendarView({ trainings, matches = [] }: Traini
               >
                 {day}
               </span>
-              {dots.length > 0 && (
+              {icons.length > 0 && (
                 <div className="flex gap-0.5 flex-wrap justify-center">
-                  {dots.slice(0, 3).map((dot) => (
-                    <div
-                      key={dot.key}
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: dot.color }}
-                    />
+                  {icons.slice(0, 3).map(({ Icon, color, key }) => (
+                    <Icon key={key} className="h-3 w-3" style={{ color }} />
                   ))}
                 </div>
               )}
@@ -252,22 +254,17 @@ export default function TrainingCalendarView({ trainings, matches = [] }: Traini
 
       {/* Legend */}
       <div className="flex items-center gap-4 pt-2 flex-wrap">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--color-info)" }} />
-          <span className="font-ui text-[11px] text-t-muted">Entraînement</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--color-primary)" }} />
-          <span className="font-ui text-[11px] text-t-muted">Championnat</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--color-info)", opacity: 0.5 }} />
-          <span className="font-ui text-[11px] text-t-muted">Amical</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#FFB800" }} />
-          <span className="font-ui text-[11px] text-t-muted">Coupe</span>
-        </div>
+        {[
+          { Icon: Dumbbell, color: "var(--color-info)",    label: "Entraînement" },
+          { Icon: Trophy,   color: "var(--color-primary)", label: "Championnat"  },
+          { Icon: Swords,   color: "var(--color-info)",    label: "Amical"       },
+          { Icon: Star,     color: "#FFB800",              label: "Coupe"        },
+        ].map(({ Icon, color, label }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <Icon className="h-3 w-3" style={{ color }} />
+            <span className="font-ui text-[11px] text-t-muted">{label}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

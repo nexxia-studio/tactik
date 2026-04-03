@@ -29,16 +29,24 @@ export function useTeamStats(teamId: string | undefined, organizationId?: string
     enabled: !!teamId,
     queryFn: async (): Promise<TeamStatsData> => {
       // Resolve VIB team IDs (same pattern as useDashboard/useMatchesByOrg)
-      let matchTeamIds: string[] = [teamId!];
+      let matchTeamIds: string[];
       if (organizationId) {
         const { data: vibTeams } = await supabase
           .from("teams")
           .select("id")
           .eq("organization_id", organizationId)
           .like("external_api_id", "%:%");
-        if (vibTeams?.length) {
-          matchTeamIds = vibTeams.map((t) => t.id);
+        if (!vibTeams?.length) {
+          // org provided but no VIB teams linked — no stats to show
+          return {
+            matchesPlayed: 0, wins: 0, draws: 0, losses: 0,
+            goalsFor: 0, goalsAgainst: 0, cleanSheets: 0,
+            avgRating: null, formData: [], playerStats: {},
+          };
         }
+        matchTeamIds = vibTeams.map((t) => t.id);
+      } else {
+        matchTeamIds = [teamId!];
       }
 
       // 1. Completed matches with scores

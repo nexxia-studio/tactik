@@ -13,9 +13,10 @@ function formatTrainingDate(iso: string) {
 }
 
 const STATUS_STYLES: Record<string, { label: string; bg: string; color: string }> = {
-  scheduled:  { label: "À venir",  bg: "rgba(79,142,255,0.15)",  color: "var(--color-info)"    },
-  completed:  { label: "Terminé",  bg: "rgba(22,255,110,0.15)",  color: "var(--color-primary)" },
-  cancelled:  { label: "Annulé",   bg: "rgba(255,59,48,0.15)",   color: "var(--color-danger)"  },
+  scheduled:   { label: "À venir",  bg: "rgba(79,142,255,0.15)",  color: "var(--color-info)"    },
+  in_progress: { label: "En cours", bg: "rgba(255,200,0,0.15)",   color: "var(--color-warning)" },
+  completed:   { label: "Terminé",  bg: "rgba(22,255,110,0.15)",  color: "var(--color-primary)" },
+  cancelled:   { label: "Annulé",   bg: "rgba(255,59,48,0.15)",   color: "var(--color-danger)"  },
 };
 
 interface Props {
@@ -73,7 +74,7 @@ export default function TrainingCard({ training, presentCount, absentCount }: Pr
 
         <div className="flex items-center gap-1 mt-auto shrink-0">
           <span className="font-ui text-[11px] text-t-muted group-hover:text-primary transition-colors">
-            {training.status === "scheduled" ? "Planifier" : "Voir"}
+            {training.status === "scheduled" ? "Planifier" : training.status === "in_progress" ? "En cours" : "Voir"}
           </span>
           <ChevronRight className="h-3.5 w-3.5 text-t-muted group-hover:text-primary transition-colors" />
         </div>

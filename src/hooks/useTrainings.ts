@@ -153,3 +153,19 @@ export function useUpsertAttendance() {
       qc.invalidateQueries({ queryKey: ["training_attendance", training_id] }),
   });
 }
+
+export function useDeleteAttendance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ training_id, player_id }: { training_id: string; player_id: string }) => {
+      const { error } = await supabase
+        .from("training_attendance")
+        .delete()
+        .eq("training_id", training_id)
+        .eq("player_id", player_id);
+      if (error) throw error;
+    },
+    onSuccess: (_, { training_id }) =>
+      qc.invalidateQueries({ queryKey: ["training_attendance", training_id] }),
+  });
+}

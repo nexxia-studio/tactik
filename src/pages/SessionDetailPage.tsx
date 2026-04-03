@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, MapPin, Clock, CheckCircle2, Lock } from "lucide-react";
+import { ArrowLeft, Save, MapPin, Clock, Lock, Zap } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useActiveTeam } from "@/contexts/TeamContext";
@@ -10,25 +10,24 @@ import {
   useTrainingAttendance,
   useUpdateTraining,
   useUpsertAttendance,
+  useDeleteAttendance,
 } from "@/hooks/useTrainings";
 import { useActiveUnavailabilities } from "@/hooks/usePlayerUnavailabilities";
 import { TrainingSectionsEditor } from "@/components/trainings/TrainingSectionsEditor";
 import { useToast } from "@/hooks/use-toast";
 
-type AttendanceStatus = "present" | "late" | "absent" | "excused";
+type SimpleStatus = "present" | "absent";
 
-const STATUS_OPTIONS: { value: AttendanceStatus; label: string; emoji: string; color: string }[] = [
-  { value: "present", label: "Présent",  emoji: "✅", color: "var(--color-primary)" },
-  { value: "late",    label: "Retard",   emoji: "⏰", color: "var(--color-warning)" },
-  { value: "absent",  label: "Absent",   emoji: "🔴", color: "var(--color-danger)"  },
-  { value: "excused", label: "Excusé",   emoji: "📋", color: "var(--color-info)"    },
+const TRAINING_STATUS_CYCLE = [
+  { value: "scheduled",   label: "Planifié",  bg: "rgba(79,142,255,0.15)",  color: "var(--color-info)"    },
+  { value: "in_progress", label: "En cours",  bg: "rgba(255,200,0,0.15)",   color: "var(--color-warning)" },
+  { value: "completed",   label: "Terminé",   bg: "rgba(22,255,110,0.15)",  color: "var(--color-primary)" },
 ];
 
-const STATUS_STYLES: Record<string, { label: string; bg: string; color: string }> = {
-  scheduled:  { label: "À venir",  bg: "rgba(79,142,255,0.15)",  color: "var(--color-info)"    },
-  completed:  { label: "Terminé",  bg: "rgba(22,255,110,0.15)",  color: "var(--color-primary)" },
-  cancelled:  { label: "Annulé",   bg: "rgba(255,59,48,0.15)",   color: "var(--color-danger)"  },
-};
+const ATT_BUTTONS: { value: SimpleStatus; emoji: string; label: string; color: string }[] = [
+  { value: "present", emoji: "✅", label: "Présent", color: "var(--color-primary)" },
+  { value: "absent",  emoji: "❌", label: "Absent",  color: "var(--color-danger)"  },
+];
 
 function formatFullDate(iso: string) {
   return new Date(iso)
@@ -53,9 +52,9 @@ export default function SessionDetailPage() {
 
   const updateTraining = useUpdateTraining();
   const upsertAttendance = useUpsertAttendance();
+  const deleteAttendance = useDeleteAttendance();
 
   const [notes, setNotes] = useState<string | null>(null);
-  // null = use server value, string = local edit in progress
 
   const currentNotes = notes !== null ? notes : (training?.notes ?? "");
 
@@ -68,9 +67,14 @@ export default function SessionDetailPage() {
     [activeUnavailabilities]
   );
 
-  // Merge teamPlayers with existing attendance records
+  // Auto-completed: scheduled_at + 2h < now, but status still "scheduled"
+  const isAutoCompleted = useMemo(() => {
+    if (!training || training.status !== "scheduled") return false;
+    return Date.now() > new Date(training.scheduled_at).getTime() + 2 * 60 * 60 * 1000;
+  }, [training]);
+
   const playerAttendance = useMemo(() => {
-    const map = new Map(attendanceRecords.map((a) => [a.player_id, a.status as AttendanceStatus]));
+    const map = new Map(attendanceRecords.map((a) => [a.player_id, a.status]));
     return teamPlayers.map((p) => ({
       player_id: p.id,
       full_name: p.full_name,
@@ -90,32 +94,46 @@ export default function SessionDetailPage() {
   );
 
   const attStats = useMemo(() => {
-    const withStatus = playerAttendance.filter((p) => p.status !== null);
-    const present = withStatus.filter((p) => p.status === "present").length;
-    const late    = withStatus.filter((p) => p.status === "late").length;
-    const absent  = withStatus.filter((p) => p.status === "absent").length;
-    const excused = withStatus.filter((p) => p.status === "excused").length;
-    const total   = playerAttendance.length;
-    const attended = present + late;
+    const present = playerAttendance.filter((p) => p.status === "present").length;
+    const absent = playerAttendance.filter((p) => p.status === "absent").length;
+    const total = playerAttendance.length;
+    const attended = present;
     const rate = total > 0 ? Math.round((attended / total) * 100) : 0;
-    return { present, late, absent, excused, total, attended, rate };
+    return { present, absent, total, attended, rate };
   }, [playerAttendance]);
 
-  const handleAttendanceChange = async (
-    player_id: string,
-    current: AttendanceStatus | null,
-    next: AttendanceStatus,
-    playerIsUnavailable?: boolean
-  ) => {
-    if (!id) return;
-    if (current === next) return;
-    if (playerIsUnavailable && (next === "present" || next === "late")) {
-      if (!window.confirm("Ce joueur est déclaré indisponible. Forcer quand même sa présence ?")) return;
-    }
+  const handleSetStatus = async (newStatus: string) => {
+    if (!id || newStatus === training?.status) return;
     try {
-      await upsertAttendance.mutateAsync({ training_id: id, player_id, status: next });
+      await updateTraining.mutateAsync({ id, status: newStatus });
     } catch (err: any) {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleAttendanceClick = async (
+    player_id: string,
+    current: string | null,
+    clicked: SimpleStatus,
+    isUnavailable?: boolean
+  ) => {
+    if (!id) return;
+    if (isUnavailable && clicked === "present") {
+      if (!window.confirm("Ce joueur est déclaré indisponible. Forcer quand même sa présence ?")) return;
+    }
+    if (current === clicked) {
+      // Toggle off → clear (delete record)
+      try {
+        await deleteAttendance.mutateAsync({ training_id: id, player_id });
+      } catch (err: any) {
+        toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      }
+    } else {
+      try {
+        await upsertAttendance.mutateAsync({ training_id: id, player_id, status: clicked });
+      } catch (err: any) {
+        toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      }
     }
   };
 
@@ -123,18 +141,8 @@ export default function SessionDetailPage() {
     if (!id) return;
     try {
       await updateTraining.mutateAsync({ id, notes: currentNotes });
-      setNotes(null); // reset to server value
+      setNotes(null);
       toast({ title: "Notes sauvegardées ✓" });
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
-    }
-  };
-
-  const handleMarkCompleted = async () => {
-    if (!id) return;
-    try {
-      await updateTraining.mutateAsync({ id, status: "completed" });
-      toast({ title: "Séance marquée terminée ✓" });
     } catch (err: any) {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
     }
@@ -172,8 +180,8 @@ export default function SessionDetailPage() {
     );
   }
 
-  const statusStyle = STATUS_STYLES[training.status] ?? STATUS_STYLES.scheduled;
-  const isScheduled = training.status === "scheduled";
+  const currentStatusStyle = TRAINING_STATUS_CYCLE.find((s) => s.value === training.status)
+    ?? TRAINING_STATUS_CYCLE[0];
 
   return (
     <div className="space-y-6 pb-24 lg:pb-0">
@@ -205,23 +213,31 @@ export default function SessionDetailPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <span
-              className="px-2.5 py-1 rounded-md font-ui text-[10px] uppercase tracking-wider"
-              style={{ backgroundColor: statusStyle.bg, color: statusStyle.color }}
-            >
-              {statusStyle.label}
-            </span>
-            {isScheduled && (
-              <Button
-                size="sm"
-                onClick={handleMarkCompleted}
+          {/* Status chips */}
+          <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+            {TRAINING_STATUS_CYCLE.map((s) => (
+              <button
+                key={s.value}
+                onClick={() => handleSetStatus(s.value)}
                 disabled={updateTraining.isPending}
-                className="bg-primary text-primary-text font-ui text-[11px] hover:opacity-90 flex items-center gap-1.5"
+                className={`px-2.5 py-1 rounded-md font-ui text-[10px] uppercase tracking-wider transition-all cursor-pointer disabled:cursor-not-allowed ${
+                  training.status === s.value
+                    ? "opacity-100 ring-1 ring-current/30"
+                    : "opacity-30 hover:opacity-60"
+                }`}
+                style={{ backgroundColor: s.bg, color: s.color }}
               >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Terminer
-              </Button>
+                {s.label}
+              </button>
+            ))}
+            {isAutoCompleted && (
+              <span
+                className="flex items-center gap-1 px-2 py-1 rounded-md font-ui text-[10px] uppercase tracking-wider"
+                style={{ backgroundColor: "rgba(255,200,0,0.1)", color: "var(--color-warning)" }}
+              >
+                <Zap className="h-3 w-3" />
+                Auto-terminé
+              </span>
             )}
           </div>
         </div>
@@ -255,6 +271,7 @@ export default function SessionDetailPage() {
             </div>
           )}
 
+          {/* Available players */}
           <div className="space-y-1">
             {availableAttendance.map((att) => {
               const initials = att.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
@@ -273,29 +290,40 @@ export default function SessionDetailPage() {
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    {STATUS_OPTIONS.map((opt) => (
+                    {ATT_BUTTONS.map((btn) => (
                       <button
-                        key={opt.value}
-                        onClick={() => handleAttendanceChange(att.player_id, att.status as AttendanceStatus | null, opt.value)}
-                        className={`w-7 h-7 rounded-md flex items-center justify-center text-[12px] transition-all cursor-pointer border ${
-                          att.status === opt.value
-                            ? "border-transparent"
-                            : "border-transparent opacity-30 hover:opacity-70"
+                        key={btn.value}
+                        onClick={() => handleAttendanceClick(att.player_id, att.status, btn.value)}
+                        title={btn.label}
+                        className={`w-7 h-7 rounded-md flex items-center justify-center text-[12px] transition-all cursor-pointer ${
+                          att.status === btn.value
+                            ? "opacity-100"
+                            : "opacity-25 hover:opacity-60"
                         }`}
                         style={{
-                          backgroundColor: att.status === opt.value ? `${opt.color}20` : "transparent",
+                          backgroundColor: att.status === btn.value ? `${btn.color}20` : "transparent",
                         }}
-                        title={opt.label}
                       >
-                        {opt.emoji}
+                        {btn.emoji}
                       </button>
                     ))}
+                    {/* À définir (clear) */}
+                    <button
+                      onClick={() => att.status && deleteAttendance.mutate({ training_id: id!, player_id: att.player_id })}
+                      title="À définir"
+                      className={`w-7 h-7 rounded-md flex items-center justify-center text-[12px] transition-all cursor-pointer ${
+                        att.status === null ? "opacity-100" : "opacity-25 hover:opacity-60"
+                      }`}
+                    >
+                      ⚪
+                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
 
+          {/* Unavailable players */}
           {unavailableAttendance.length > 0 && (
             <div className="space-y-2 pt-1">
               <div className="flex items-center gap-1.5 px-1">
@@ -307,6 +335,8 @@ export default function SessionDetailPage() {
               <div className="space-y-1">
                 {unavailableAttendance.map((att) => {
                   const initials = att.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+                  // Visually pre-fill as absent when no record exists
+                  const effectiveStatus = att.status ?? "absent";
                   return (
                     <div
                       key={att.player_id}
@@ -327,23 +357,32 @@ export default function SessionDetailPage() {
                         </div>
                       </div>
                       <div className="flex gap-1 shrink-0">
-                        {STATUS_OPTIONS.map((opt) => (
+                        {ATT_BUTTONS.map((btn) => (
                           <button
-                            key={opt.value}
-                            onClick={() => handleAttendanceChange(att.player_id, att.status as AttendanceStatus | null, opt.value, true)}
-                            className={`w-7 h-7 rounded-md flex items-center justify-center text-[12px] transition-all cursor-pointer border ${
-                              att.status === opt.value
-                                ? "border-transparent"
-                                : "border-transparent opacity-30 hover:opacity-70"
+                            key={btn.value}
+                            onClick={() => handleAttendanceClick(att.player_id, att.status, btn.value, true)}
+                            title={btn.label}
+                            className={`w-7 h-7 rounded-md flex items-center justify-center text-[12px] transition-all cursor-pointer ${
+                              effectiveStatus === btn.value
+                                ? "opacity-100"
+                                : "opacity-25 hover:opacity-60"
                             }`}
                             style={{
-                              backgroundColor: att.status === opt.value ? `${opt.color}20` : "transparent",
+                              backgroundColor: effectiveStatus === btn.value ? `${btn.color}20` : "transparent",
                             }}
-                            title={opt.label}
                           >
-                            {opt.emoji}
+                            {btn.emoji}
                           </button>
                         ))}
+                        <button
+                          onClick={() => att.status && deleteAttendance.mutate({ training_id: id!, player_id: att.player_id })}
+                          title="À définir"
+                          className={`w-7 h-7 rounded-md flex items-center justify-center text-[12px] transition-all cursor-pointer ${
+                            att.status === null ? "opacity-100" : "opacity-25 hover:opacity-60"
+                          }`}
+                        >
+                          ⚪
+                        </button>
                       </div>
                     </div>
                   );
@@ -352,12 +391,11 @@ export default function SessionDetailPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-4 gap-2">
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-2">
             {[
               { label: "Présents", value: attStats.present, color: "var(--color-primary)" },
-              { label: "Retards",  value: attStats.late,    color: "var(--color-warning)" },
               { label: "Absents",  value: attStats.absent,  color: "var(--color-danger)"  },
-              { label: "Excusés",  value: attStats.excused, color: "var(--color-info)"    },
             ].map((s) => (
               <div key={s.label} className="bg-bg-surface-1 border border-b-subtle rounded-xl p-3 text-center">
                 <p className="font-display text-[18px]" style={{ color: s.color }}>{s.value}</p>

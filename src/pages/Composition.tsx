@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FORMATIONS, FORMATION_KEYS } from "@/components/composition/formations";
 import { type FUTPlayer, type PlayerStatus, getPositionCategory } from "@/components/composition/mockPlayers";
@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useActiveTeam } from "@/contexts/TeamContext";
 import { usePlayers } from "@/hooks/usePlayers";
-import { useMatches } from "@/hooks/useMatches";
+import { useMatchesByOrg } from "@/hooks/useMatches";
 import { useActiveUnavailabilities } from "@/hooks/usePlayerUnavailabilities";
 import type { Player } from "@/hooks/usePlayers";
 
@@ -60,12 +60,14 @@ function getSlotFillingOrder(formation: typeof FORMATIONS[string]): number[] {
 
 export default function Composition() {
   const navigate = useNavigate();
-  const { activeTeamId: teamId } = useActiveTeam();
+  const { activeTeamId: teamId, activeTeam } = useActiveTeam();
 
   const { data: rawPlayers = [] } = usePlayers(teamId);
-  const { data: rawMatches = [] } = useMatches(teamId);
+  const { data: rawMatches = [] } = useMatchesByOrg(activeTeam?.organization_id);
 
   const futPlayers = useMemo(() => rawPlayers.map(mapPlayerToFUT), [rawPlayers]);
+
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   const compositionMatches = useMemo<CompositionMatch[]>(() =>
     rawMatches.map((m) => ({
@@ -89,7 +91,8 @@ export default function Composition() {
   const isReadonly = selectedMatch?.played ?? false;
   const isFriendly = selectedMatch?.type === "friendly";
 
-  const selectedMatchDateISO = selectedMatch?.date ?? "";
+  // Use match date when selected, otherwise fall back to today so "Blessés" always reflects current unavailabilities
+  const selectedMatchDateISO = selectedMatch?.date ?? today;
   const { data: activeUnavailabilities = [] } = useActiveUnavailabilities(teamId, selectedMatchDateISO);
   const dbUnavailableIds = useMemo(
     () => new Set(activeUnavailabilities.map((u) => u.player_id)),
@@ -105,6 +108,19 @@ export default function Composition() {
   const [substituteIds, setSubstituteIds] = useState<string[]>([]);
   const [playerStatuses, setPlayerStatuses] = useState<Record<string, PlayerStatus>>({});
   const [initialized, setInitialized] = useState(false);
+  const autoSelectedRef = useRef(false);
+
+  // Auto-select the next upcoming match on first load
+  useEffect(() => {
+    if (autoSelectedRef.current || compositionMatches.length === 0) return;
+    const nextMatch = compositionMatches
+      .filter((m) => !m.played && m.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date))[0];
+    if (nextMatch) {
+      setSelectedMatchId(nextMatch.id);
+      autoSelectedRef.current = true;
+    }
+  }, [compositionMatches, today]);
 
   // When DB-unavailable set changes, kick those players off pitch and bench
   useEffect(() => {
@@ -253,6 +269,11 @@ export default function Composition() {
           </p>
         </div>
         <MatchSelector selectedMatchId={selectedMatchId} onSelect={setSelectedMatchId} matches={compositionMatches} />
+        {rawMatches.length > 0 && compositionMatches.filter((m) => !m.played && m.date >= today).length === 0 && (
+          <p className="font-ui text-[var(--text-small)] text-t-muted">
+            Aucun match à venir — seuls les matchs passés sont disponibles.
+          </p>
+        )}
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>

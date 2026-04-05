@@ -83,6 +83,30 @@ export const FORMATIONS: Record<string, Formation> = {
       [5, 9], [7, 10], [9, 10],
     ],
   },
+  "3-4-3": {
+    name: "3-4-3",
+    positions: [
+      { label: "GK",  x: 50, y: 92 },
+      { label: "CB",  x: 25, y: 76 },
+      { label: "CB",  x: 50, y: 78 },
+      { label: "CB",  x: 75, y: 76 },
+      { label: "CM",  x: 18, y: 54 },
+      { label: "CM",  x: 38, y: 50 },
+      { label: "CM",  x: 62, y: 50 },
+      { label: "CM",  x: 82, y: 54 },
+      { label: "LW",  x: 18, y: 24 },
+      { label: "ST",  x: 50, y: 18 },
+      { label: "RW",  x: 82, y: 24 },
+    ],
+    links: [
+      [0, 1], [0, 2], [0, 3],
+      [1, 2], [2, 3],
+      [1, 4], [2, 5], [2, 6], [3, 7],
+      [4, 5], [5, 6], [6, 7],
+      [4, 8], [5, 8], [5, 9], [6, 9], [6, 10], [7, 10],
+      [8, 9], [9, 10],
+    ],
+  },
   "4-2-3-1": {
     name: "4-2-3-1",
     positions: [

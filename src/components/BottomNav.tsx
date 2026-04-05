@@ -1,4 +1,5 @@
 import { useLocation, Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import { Home, UserCheck, Dumbbell, ClipboardList, Menu } from "lucide-react";
 
 const items = [
@@ -12,10 +13,31 @@ const items = [
 export function BottomNav() {
   const location = useLocation();
   const currentPath = location.pathname;
+  const [visible, setVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const THRESHOLD = 10;
+    const onScroll = () => {
+      const current = window.scrollY;
+      if (current < THRESHOLD) {
+        setVisible(true);
+      } else if (current > lastScrollY.current + THRESHOLD) {
+        setVisible(false);
+      } else if (current < lastScrollY.current - THRESHOLD) {
+        setVisible(true);
+      }
+      lastScrollY.current = current;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-surface-1 border-t border-b-subtle"
+      className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-surface-1 border-t border-b-subtle transition-all duration-300 ease-in-out ${
+        visible ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+      }`}
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="flex items-end justify-around h-16">

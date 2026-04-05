@@ -35,7 +35,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-surface-1 border-t border-b-subtle transition-all duration-300 ease-in-out ${
+      className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-surface-1 border-t border-b-subtle transition-all duration-500 ease-out ${
         visible ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
       }`}
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}

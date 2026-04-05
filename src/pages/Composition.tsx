@@ -257,54 +257,20 @@ export default function Composition() {
   };
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-0">
-      {/* Header */}
-      <div className="flex flex-col gap-4">
-        <div>
-          <h1 className="font-display text-t-primary leading-none" style={{ fontSize: "var(--text-h1)" }}>
-            COMPOSITION
-          </h1>
-          <p className="text-t-secondary font-ui text-[var(--text-small)] mt-2">
-            Sélectionne un match et compose ton XI
-          </p>
-        </div>
-        <MatchSelector selectedMatchId={selectedMatchId} onSelect={setSelectedMatchId} matches={compositionMatches} />
-        {rawMatches.length > 0 && compositionMatches.filter((m) => !m.played && m.date >= today).length === 0 && (
-          <p className="font-ui text-[var(--text-small)] text-t-muted">
-            Aucun match à venir — seuls les matchs passés sont disponibles.
-          </p>
-        )}
-
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            {isReadonly && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-ui text-[var(--text-small)] uppercase tracking-wider bg-[var(--color-danger)]/15 text-[var(--color-danger)] border border-[var(--color-danger)]/20">
-                Match joué
-              </span>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {FORMATION_KEYS.map((key) => (
-              <button
-                key={key}
-                onClick={() => handleFormationChange(key)}
-                disabled={isReadonly}
-                className={`px-3 py-1.5 rounded-lg font-ui text-[12px] transition-all ${
-                  selectedFormation === key
-                    ? "bg-primary text-primary-text font-semibold"
-                    : "bg-bg-surface-2 text-t-secondary hover:bg-bg-surface-3 hover:text-t-primary border border-b-subtle"
-                } ${isReadonly ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                {key}
-              </button>
-            ))}
-          </div>
-        </div>
+    <div className="space-y-4 pb-20 lg:pb-0">
+      {/* Header — title only */}
+      <div>
+        <h1 className="font-display text-t-primary leading-none" style={{ fontSize: "var(--text-h1)" }}>
+          COMPOSITION
+        </h1>
+        <p className="text-t-secondary font-ui text-[var(--text-small)] mt-1">
+          Sélectionne un match et compose ton XI
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pitch + save button */}
-        <div className="lg:col-span-2 space-y-4 min-w-0">
+        {/* Pitch — first visible element — then controls below */}
+        <div className="lg:col-span-2 space-y-3 min-w-0">
           <PitchView
             formation={formation}
             players={assignedPlayers}
@@ -314,6 +280,42 @@ export default function Composition() {
             readonly={isReadonly}
           />
 
+          {/* Formation selector */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              {isReadonly && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-ui text-[var(--text-small)] uppercase tracking-wider bg-[var(--color-danger)]/15 text-[var(--color-danger)] border border-[var(--color-danger)]/20">
+                  Match joué
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {FORMATION_KEYS.map((key) => (
+                <button
+                  key={key}
+                  onClick={() => handleFormationChange(key)}
+                  disabled={isReadonly}
+                  className={`px-3 py-1.5 rounded-lg font-ui text-[12px] transition-all ${
+                    selectedFormation === key
+                      ? "bg-primary text-primary-text font-semibold"
+                      : "bg-bg-surface-2 text-t-secondary hover:bg-bg-surface-3 hover:text-t-primary border border-b-subtle"
+                  } ${isReadonly ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  {key}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Match selector */}
+          <MatchSelector selectedMatchId={selectedMatchId} onSelect={setSelectedMatchId} matches={compositionMatches} />
+          {rawMatches.length > 0 && compositionMatches.filter((m) => !m.played && m.date >= today).length === 0 && (
+            <p className="font-ui text-[var(--text-small)] text-t-muted">
+              Aucun match à venir — seuls les matchs passés sont disponibles.
+            </p>
+          )}
+
+          {/* Save button */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -337,7 +339,7 @@ export default function Composition() {
           </TooltipProvider>
         </div>
 
-        {/* Sidebar */}
+        {/* Sidebar — effectif */}
         <div className="space-y-6">
           <div className="bg-bg-surface-1 border border-b-subtle rounded-xl p-6 flex flex-col items-center gap-4">
             <span className="font-ui text-[var(--text-label)] text-t-muted uppercase tracking-wider">Score chimie</span>

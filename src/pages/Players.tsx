@@ -25,11 +25,20 @@ export default function Players() {
   const updatePlayer = useUpdatePlayer();
   const deletePlayer = useDeletePlayer(selectedTeamId ?? "");
 
+  const POSITION_CATEGORIES: Record<string, string[]> = {
+    Gardien:   ["Gardien"],
+    Défenseur: ["Défenseur central", "Arrière droit", "Arrière gauche", "Défenseur"],
+    Milieu:    ["Milieu défensif", "Milieu central", "Milieu offensif", "Milieu"],
+    Attaquant: ["Ailier droit", "Ailier gauche", "Attaquant centre", "Avant-centre", "Attaquant"],
+  };
+
   const filtered = useMemo(() => {
     if (!players) return [];
     return players.filter((p) => {
       const matchesSearch = !search || p.full_name.toLowerCase().includes(search.toLowerCase());
-      const matchesPosition = positionFilter === "Tous" || p.position_preferred === positionFilter;
+      const matchesPosition =
+        positionFilter === "Tous" ||
+        (POSITION_CATEGORIES[positionFilter] ?? []).includes(p.position_preferred ?? "");
       return matchesSearch && matchesPosition;
     });
   }, [players, search, positionFilter]);
@@ -38,7 +47,10 @@ export default function Players() {
     if (!players) return { Gardien: 0, Défenseur: 0, Milieu: 0, Attaquant: 0 };
     const counts: Record<string, number> = { Gardien: 0, Défenseur: 0, Milieu: 0, Attaquant: 0 };
     players.forEach((p) => {
-      if (p.position_preferred) counts[p.position_preferred] = (counts[p.position_preferred] || 0) + 1;
+      const pos = p.position_preferred ?? "";
+      for (const [cat, list] of Object.entries(POSITION_CATEGORIES)) {
+        if (list.includes(pos)) { counts[cat] = (counts[cat] || 0) + 1; break; }
+      }
     });
     return counts;
   }, [players]);

@@ -1,6 +1,9 @@
 import { useRef, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { ChevronDown, Shield } from "lucide-react";
 import { useActiveTeam } from "@/contexts/TeamContext";
+
+const SHOW_ON_ROUTES = ["/dashboard", "/", "/plus"];
 
 interface TeamSelectorProps {
   variant?: "sidebar" | "mobile";
@@ -8,8 +11,11 @@ interface TeamSelectorProps {
 
 export function TeamSelector({ variant = "sidebar" }: TeamSelectorProps) {
   const { teams, activeTeam, setActiveTeamId, teamsLoading } = useActiveTeam();
+  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  if (!SHOW_ON_ROUTES.includes(pathname)) return null;
 
   // Close on outside click
   useEffect(() => {

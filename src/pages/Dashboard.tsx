@@ -69,7 +69,7 @@ function StatCard({
       {loading ? (
         <div className="h-8 w-24 bg-bg-surface-2 rounded animate-pulse" />
       ) : (
-        <p className="font-display text-[28px] text-t-primary leading-none tracking-tight">
+        <p className="font-display text-t-primary leading-none tracking-tight" style={{ fontSize: "clamp(18px, 3vw, 24px)" }}>
           {value}
         </p>
       )}
@@ -190,17 +190,17 @@ export default function Dashboard() {
                 return (
                   <div
                     key={m.id}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-bg-surface-2 transition-all cursor-pointer group"
+                    className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-bg-surface-2 transition-all cursor-pointer group"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${r ? resultColor[r] : "bg-bg-surface-3"}`} />
-                      <span className="text-[13px] font-ui text-t-primary">{m.opponent}</span>
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${r ? resultColor[r] : "bg-bg-surface-3"}`} />
+                      <span className="text-[13px] font-ui text-t-primary truncate">{m.opponent}</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-display text-[14px] text-t-primary tracking-wider">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-display text-[14px] text-t-primary tracking-wider w-16 text-center">
                         {getScore(m)}
                       </span>
-                      <span className="text-[12px] text-t-muted font-ui">{fmtDate(m.match_date)}</span>
+                      <span className="text-[12px] text-t-muted font-ui w-14 text-right">{fmtDate(m.match_date)}</span>
                       <ChevronRight className="h-4 w-4 text-t-muted opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </div>

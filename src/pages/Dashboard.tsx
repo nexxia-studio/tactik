@@ -175,7 +175,7 @@ export default function Dashboard() {
                   </div>
                 );
               })}
-              <span className="ml-2 font-display text-[20px] text-primary tracking-tight">
+              <span className="hidden sm:inline ml-2 font-display text-[20px] text-primary tracking-tight">
                 {formSummary.W}V {formSummary.D}N {formSummary.L}D
               </span>
             </div>

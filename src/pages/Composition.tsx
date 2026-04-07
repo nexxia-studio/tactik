@@ -271,14 +271,17 @@ export default function Composition() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Pitch — first visible element — then controls below */}
         <div className="lg:col-span-2 space-y-3 min-w-0">
-          <PitchView
-            formation={formation}
-            players={assignedPlayers}
-            onSwapSlots={swapSlots}
-            onDropBenchPlayer={placeBenchPlayer}
-            onRemovePlayer={removePlayer}
-            readonly={isReadonly}
-          />
+          {/* Width is capped so pitch height never exceeds viewport */}
+          <div style={{ width: "min(100%, calc((100vh - 7rem) * 5 / 7))" }}>
+            <PitchView
+              formation={formation}
+              players={assignedPlayers}
+              onSwapSlots={swapSlots}
+              onDropBenchPlayer={placeBenchPlayer}
+              onRemovePlayer={removePlayer}
+              readonly={isReadonly}
+            />
+          </div>
 
           {/* Formation selector */}
           <div className="flex items-center justify-between gap-3 flex-wrap">

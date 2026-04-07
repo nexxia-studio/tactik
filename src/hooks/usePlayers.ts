@@ -6,6 +6,8 @@ export interface Player {
   id: string;
   user_id: string | null;
   full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   nickname: string | null;
   avatar_url: string | null;
   birth_date: string | null;
@@ -20,6 +22,12 @@ export interface Player {
   level: number;
   is_claimed: boolean;
   created_at: string;
+}
+
+/** Returns "Prénom Nom" when first/last are set, falls back to full_name. */
+export function playerDisplayName(p: Pick<Player, "first_name" | "last_name" | "full_name">): string {
+  if (p.first_name && p.last_name) return `${p.first_name} ${p.last_name}`;
+  return p.full_name;
 }
 
 // Fetch all players belonging to a team (via team_members join)
@@ -65,6 +73,8 @@ export function useTeams() {
 
 export type PlayerWriteFields = {
   full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   nickname: string | null;
   avatar_url: string | null;
   position_preferred: string | null;

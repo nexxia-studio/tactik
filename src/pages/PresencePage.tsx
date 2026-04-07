@@ -5,6 +5,7 @@ import { usePlayers } from "@/hooks/usePlayers";
 import { useTrainings, useTrainingAttendance, useUpsertAttendance, useDeleteAttendance } from "@/hooks/useTrainings";
 import { useActiveUnavailabilities } from "@/hooks/usePlayerUnavailabilities";
 import type { Player } from "@/hooks/usePlayers";
+import { playerDisplayName } from "@/hooks/usePlayers";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -71,7 +72,7 @@ function PlayerPresenceCard({
   status: AttendanceStatus;
   onToggle: () => void;
 }) {
-  const initials = player.full_name
+  const initials = playerDisplayName(player)
     .split(" ")
     .map((p) => p[0])
     .join("")
@@ -107,7 +108,7 @@ function PlayerPresenceCard({
       {/* Avatar */}
       <div className="w-9 h-9 rounded-full bg-bg-surface-2 flex items-center justify-center shrink-0 overflow-hidden">
         {player.avatar_url ? (
-          <img src={player.avatar_url} alt={player.full_name} className="w-full h-full object-cover" />
+          <img src={player.avatar_url} alt={playerDisplayName(player)} className="w-full h-full object-cover" />
         ) : (
           <span className="font-display text-[13px] text-t-secondary">{initials}</span>
         )}
@@ -115,7 +116,7 @@ function PlayerPresenceCard({
 
       {/* Name + position */}
       <div className="flex-1 min-w-0 text-left">
-        <p className="font-ui text-[14px] text-t-primary truncate">{player.full_name}</p>
+        <p className="font-ui text-[14px] text-t-primary truncate">{playerDisplayName(player)}</p>
         {(player.position_preferred || player.shirt_number != null) && (
           <p className="font-ui text-[11px] text-t-muted mt-0.5">
             {player.shirt_number != null && `#${player.shirt_number}`}

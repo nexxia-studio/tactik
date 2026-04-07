@@ -3,6 +3,7 @@ import { Calendar, Pencil, User, Star, AlertTriangle, Trash2, Plus } from "lucid
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Player } from "@/hooks/usePlayers";
+import { playerDisplayName } from "@/hooks/usePlayers";
 import { useActiveTeam } from "@/contexts/TeamContext";
 import {
   usePlayerUnavailabilities,
@@ -119,7 +120,7 @@ export function PlayerDetailSheet({ player, open, onOpenChange, onEdit }: Player
             <div className="flex flex-col items-center text-center">
               <div className="h-24 w-24 rounded-full bg-bg-surface-2 overflow-hidden flex items-center justify-center mb-4 border-2 border-b-subtle">
                 {player.avatar_url ? (
-                  <img src={player.avatar_url} alt={player.full_name} className="h-full w-full object-cover" />
+                  <img src={player.avatar_url} alt={playerDisplayName(player)} className="h-full w-full object-cover" />
                 ) : player.shirt_number ? (
                   <span className="font-display text-[32px] text-t-primary">{player.shirt_number}</span>
                 ) : (
@@ -138,7 +139,7 @@ export function PlayerDetailSheet({ player, open, onOpenChange, onEdit }: Player
               )}
 
               <h2 className="font-display text-t-primary leading-none" style={{ fontSize: "var(--text-h2)" }}>
-                {player.full_name.toUpperCase()}
+                {playerDisplayName(player).toUpperCase()}
               </h2>
               {player.nickname && (
                 <p className="font-ui text-[13px] text-t-muted mt-1">« {player.nickname} »</p>
@@ -344,7 +345,7 @@ export function PlayerDetailSheet({ player, open, onOpenChange, onEdit }: Player
       <UnavailabilityDialog
         open={unavailDialogOpen}
         onOpenChange={setUnavailDialogOpen}
-        playerName={player.full_name}
+        playerName={playerDisplayName(player)}
         onSubmit={handleCreateUnavailability}
         submitting={createUnavailability.isPending}
       />

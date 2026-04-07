@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Plus, Users } from "lucide-react";
-import { usePlayers, useAddPlayer, useUpdatePlayer, useDeletePlayer } from "@/hooks/usePlayers";
+import { usePlayers, useAddPlayer, useUpdatePlayer, useDeletePlayer, playerDisplayName } from "@/hooks/usePlayers";
 import { useActiveTeam } from "@/contexts/TeamContext";
 import type { Player } from "@/hooks/usePlayers";
 import { PlayerFilters } from "@/components/players/PlayerFilters";
@@ -35,7 +35,7 @@ export default function Players() {
   const filtered = useMemo(() => {
     if (!players) return [];
     return players.filter((p) => {
-      const matchesSearch = !search || p.full_name.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = !search || playerDisplayName(p).toLowerCase().includes(search.toLowerCase());
       const matchesPosition =
         positionFilter === "Tous" ||
         (POSITION_CATEGORIES[positionFilter] ?? []).includes(p.position_preferred ?? "");
@@ -74,7 +74,7 @@ export default function Players() {
   const handleDelete = async (player: Player) => {
     try {
       await deletePlayer.mutateAsync(player.id);
-      toast({ title: `${player.full_name} retiré de l'équipe` });
+      toast({ title: `${playerDisplayName(player)} retiré de l'équipe` });
     } catch (err: any) {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
     }

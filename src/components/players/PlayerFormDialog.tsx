@@ -100,7 +100,8 @@ interface PlayerFormDialogProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function PlayerFormDialog({ open, onOpenChange, player, onSubmit, submitting }: PlayerFormDialogProps) {
-  const [fullName, setFullName]           = useState("");
+  const [firstName, setFirstName]         = useState("");
+  const [lastName, setLastName]           = useState("");
   const [nickname, setNickname]           = useState("");
   const [position, setPosition]           = useState("Milieu central");
   const [posAlt1, setPosAlt1]             = useState("");
@@ -116,7 +117,9 @@ export function PlayerFormDialog({ open, onOpenChange, player, onSubmit, submitt
 
   useEffect(() => {
     if (player) {
-      setFullName(player.full_name);
+      // Prefer first_name/last_name if set, otherwise split full_name
+      setFirstName(player.first_name ?? player.full_name.split(" ")[0] ?? "");
+      setLastName(player.last_name ?? player.full_name.split(" ").slice(1).join(" ") ?? "");
       setNickname(player.nickname || "");
       setPosition(player.position_preferred || "Milieu central");
       setPosAlt1(player.position_alternative_1 || "");
@@ -128,7 +131,7 @@ export function PlayerFormDialog({ open, onOpenChange, player, onSubmit, submitt
       setAvatarPreview(player.avatar_url);
       setAvatarFile(null);
     } else {
-      setFullName(""); setNickname(""); setPosition("Milieu central");
+      setFirstName(""); setLastName(""); setNickname(""); setPosition("Milieu central");
       setPosAlt1(""); setPosAlt2(""); setFoot(""); setShirtNumber("");
       setStrengths([]); setWeaknesses([]);
       setAvatarPreview(null); setAvatarFile(null);
@@ -170,8 +173,13 @@ export function PlayerFormDialog({ open, onOpenChange, player, onSubmit, submitt
       }
     }
 
+    const first = firstName.trim();
+    const last  = lastName.trim();
+
     onSubmit({
-      full_name:               fullName.trim(),
+      full_name:               `${first} ${last}`.trim(),
+      first_name:              first || null,
+      last_name:               last || null,
       nickname:                nickname.trim() || null,
       avatar_url,
       position_preferred:      position || null,
@@ -220,17 +228,31 @@ export function PlayerFormDialog({ open, onOpenChange, player, onSubmit, submitt
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
           </div>
 
-          {/* Nom + Surnom */}
-          <div className="space-y-1">
-            <label className="font-ui text-[11px] uppercase tracking-[0.15em] text-t-secondary">Nom complet</label>
-            <input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-              placeholder="Prénom Nom"
-              className={inputClass}
-            />
+          {/* Prénom + Nom */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="font-ui text-[11px] uppercase tracking-[0.15em] text-t-secondary">Prénom</label>
+              <input
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+                placeholder="Prénom"
+                className={inputClass}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="font-ui text-[11px] uppercase tracking-[0.15em] text-t-secondary">Nom</label>
+              <input
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+                placeholder="Nom"
+                className={inputClass}
+              />
+            </div>
           </div>
+
+          {/* Surnom */}
           <div className="space-y-1">
             <label className="font-ui text-[11px] uppercase tracking-[0.15em] text-t-secondary">Surnom (optionnel)</label>
             <input
@@ -335,7 +357,7 @@ export function PlayerFormDialog({ open, onOpenChange, player, onSubmit, submitt
           {/* Submit */}
           <button
             type="submit"
-            disabled={isSubmitting || !fullName.trim()}
+            disabled={isSubmitting || !firstName.trim() || !lastName.trim()}
             className="w-full font-ui text-[11px] font-semibold tracking-wider uppercase
                        px-4 py-3 rounded-lg bg-primary text-primary-text
                        hover:opacity-90 active:scale-[0.98] transition-all

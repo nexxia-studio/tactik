@@ -4,7 +4,7 @@ import { ArrowLeft, Save, MapPin, Clock, Lock, Zap } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useActiveTeam } from "@/contexts/TeamContext";
-import { usePlayers } from "@/hooks/usePlayers";
+import { usePlayers, playerDisplayName } from "@/hooks/usePlayers";
 import {
   useTraining,
   useTrainingAttendance,
@@ -77,7 +77,7 @@ export default function SessionDetailPage() {
     const map = new Map(attendanceRecords.map((a) => [a.player_id, a.status]));
     return teamPlayers.map((p) => ({
       player_id: p.id,
-      full_name: p.full_name,
+      full_name: playerDisplayName(p),
       shirt_number: p.shirt_number,
       status: map.get(p.id) ?? null,
       isUnavailable: unavailablePlayerIds.has(p.id),

@@ -1,5 +1,6 @@
 import { User, MoreVertical, Pencil, Trash2, Eye } from "lucide-react";
 import type { Player } from "@/hooks/usePlayers";
+import { playerDisplayName } from "@/hooks/usePlayers";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,7 +35,7 @@ export function PlayerCard({ player, onEdit, onDelete, onView }: PlayerCardProps
       {/* Avatar */}
       <div className="relative h-11 w-11 rounded-full shrink-0 overflow-hidden bg-bg-surface-2 flex items-center justify-center">
         {player.avatar_url ? (
-          <img src={player.avatar_url} alt={player.full_name} className="h-full w-full object-cover" />
+          <img src={player.avatar_url} alt={playerDisplayName(player)} className="h-full w-full object-cover" />
         ) : player.shirt_number ? (
           <span className="font-display text-[14px] text-t-primary">{player.shirt_number}</span>
         ) : (
@@ -49,7 +50,7 @@ export function PlayerCard({ player, onEdit, onDelete, onView }: PlayerCardProps
       {/* Info */}
       <div className="flex-1 min-w-0">
         <p className="font-ui text-[14px] text-t-primary truncate">
-          {player.full_name}
+          {playerDisplayName(player)}
           {player.shirt_number && (
             <span className="ml-2 text-[12px] text-t-muted font-display">#{player.shirt_number}</span>
           )}

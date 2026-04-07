@@ -29,12 +29,12 @@ function mapPositionToFUT(pos: string | null): string {
 }
 
 function mapPlayerToFUT(player: Player): FUTPlayer {
-  const name = player.full_name ?? "";
-  const parts = name.split(" ").filter(Boolean);
+  const firstName = player.first_name ?? player.full_name.split(" ")[0] ?? "";
+  const lastName  = player.last_name  ?? player.full_name.split(" ").slice(1).join(" ") ?? "";
   return {
     id: player.id,
-    firstName: parts[0] ?? name,
-    lastName: parts.slice(1).join(" ") || "",
+    firstName,
+    lastName,
     position: mapPositionToFUT(player.position_preferred ?? null),
     jerseyNumber: player.shirt_number ?? 0,
     rating: 70,

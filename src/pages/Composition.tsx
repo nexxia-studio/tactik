@@ -362,13 +362,14 @@ export default function Composition() {
     localStorage.setItem(`tactik_formation_${selectedMatchId}`, key);
 
     // Direct Supabase call — no hook, no debounce, no gate condition
-    const { error } = await (supabase as any)
+    const { data, error } = await (supabase as any)
       .from("lineups")
       .upsert(
         { team_id: teamId, match_id: selectedMatchId, formation: key, players: truncatedIds, substitute_ids: substituteIds, updated_at: new Date().toISOString() },
         { onConflict: "team_id,match_id" }
-      );
-    console.log("[Formation Save]", key, "team:", teamId, "match:", selectedMatchId, "error:", error);
+      )
+      .select();
+    console.log("[Formation Save] result:", JSON.stringify({ key, teamId, selectedMatchId, error, data }));
   };
 
   return (

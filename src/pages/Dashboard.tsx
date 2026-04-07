@@ -4,6 +4,7 @@ import { useActiveTeam } from "@/contexts/TeamContext";
 import type { DashboardMatch } from "@/hooks/useDashboard";
 import { AttendanceBarChart } from "@/components/stats/AttendanceBarChart";
 import { useAttendanceChartData } from "@/hooks/useTrainings";
+import { useSquadAvailability } from "@/hooks/useSquadAvailability";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -82,6 +83,44 @@ function StatCard({
   );
 }
 
+function AvailabilityCard({ teamId }: { teamId: string | undefined }) {
+  const { data, isLoading } = useSquadAvailability(teamId);
+
+  return (
+    <div className="bg-bg-surface-1 border border-b-subtle rounded-xl p-4 animate-fade-in col-span-2 lg:col-span-1">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="p-2 rounded-lg bg-primary-dim">
+          <Users className="h-4 w-4 text-primary" />
+        </div>
+        <span className="text-label">EFFECTIF</span>
+      </div>
+
+      {isLoading || !data ? (
+        <div className="h-8 w-24 bg-bg-surface-2 rounded animate-pulse" />
+      ) : (
+        <>
+          <p className="font-display text-t-primary leading-none tracking-tight" style={{ fontSize: "clamp(18px, 3vw, 24px)" }}>
+            {data.available} / {data.total}
+          </p>
+          <p className={`text-[12px] font-ui mt-1.5 ${data.unavailable > 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}>
+            {data.unavailable > 0
+              ? `${data.unavailable} indisponible${data.unavailable > 1 ? "s" : ""}`
+              : "Effectif complet"}
+          </p>
+          {data.total > 0 && (
+            <div className="mt-3 h-1.5 rounded-full bg-bg-surface-3 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[var(--color-success)] transition-all"
+                style={{ width: `${Math.round((data.available / data.total) * 100)}%` }}
+              />
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -141,6 +180,7 @@ export default function Dashboard() {
         <StatCard icon={Dumbbell}  label="ENTRAÎNEMENT"    value={nextTrainingValue} sub={nextTrainingSub} loading={isLoading || !data} />
         <StatCard icon={Users}     label="PRÉSENCES 30J"   value={attendanceValue}   sub={attendanceSub}   loading={isLoading || !data} />
         <StatCard icon={Wallet}    label="CAGNOTTE"         value={balanceValue}      sub={balanceSub}      loading={isLoading || !data} />
+        <AvailabilityCard teamId={teamId} />
       </div>
 
       {/* Attendance chart — compact, last 5 sessions */}

@@ -14,17 +14,17 @@ export interface Formation {
 }
 
 export const FORMATIONS: Record<string, Formation> = {
-  "4-3-3": {
-    name: "4-3-3",
+  "4-3-3 défensif": {
+    name: "4-3-3 défensif",
     positions: [
       { label: "GK", x: 50, y: 92 },
       { label: "LB", x: 15, y: 72 },
       { label: "CB", x: 38, y: 76 },
       { label: "CB", x: 62, y: 76 },
       { label: "RB", x: 85, y: 72 },
-      { label: "CM", x: 25, y: 52 },
-      { label: "CM", x: 50, y: 48 },
-      { label: "CM", x: 75, y: 52 },
+      { label: "CM", x: 25, y: 52 },  // triangle pointant vers l'avant :
+      { label: "CM", x: 50, y: 48 },  // CM central haut
+      { label: "CM", x: 75, y: 52 },  // CMs latéraux bas
       { label: "LW", x: 18, y: 24 },
       { label: "ST", x: 50, y: 18 },
       { label: "RW", x: 82, y: 24 },
@@ -34,6 +34,31 @@ export const FORMATIONS: Record<string, Formation> = {
       [1, 2], [2, 3], [3, 4],
       [1, 5], [5, 6], [6, 7], [4, 7],
       [5, 8], [6, 9], [7, 10],
+      [8, 9], [9, 10],
+    ],
+  },
+  "4-3-3 offensif": {
+    name: "4-3-3 offensif",
+    positions: [
+      { label: "GK",  x: 50, y: 92 },
+      { label: "LB",  x: 15, y: 72 },
+      { label: "CB",  x: 38, y: 76 },
+      { label: "CB",  x: 62, y: 76 },
+      { label: "RB",  x: 85, y: 72 },
+      { label: "CDM", x: 50, y: 60 }, // triangle inversé : CDM bas
+      { label: "LCM", x: 25, y: 44 }, // LCM/RCM hauts (entre milieu et attaque)
+      { label: "RCM", x: 75, y: 44 },
+      { label: "LW",  x: 18, y: 24 },
+      { label: "ST",  x: 50, y: 18 },
+      { label: "RW",  x: 82, y: 24 },
+    ],
+    links: [
+      [0, 2], [0, 3],
+      [1, 2], [2, 3], [3, 4],
+      [2, 5], [3, 5],           // CBs → CDM
+      [1, 6], [4, 7],           // LB → LCM, RB → RCM
+      [5, 6], [5, 7],           // CDM → LCM/RCM
+      [6, 8], [6, 9], [7, 9], [7, 10],
       [8, 9], [9, 10],
     ],
   },
@@ -63,17 +88,17 @@ export const FORMATIONS: Record<string, Formation> = {
   "3-5-2": {
     name: "3-5-2",
     positions: [
-      { label: "GK", x: 50, y: 92 },
-      { label: "CB", x: 25, y: 76 },
-      { label: "CB", x: 50, y: 78 },
-      { label: "CB", x: 75, y: 76 },
+      { label: "GK",  x: 50, y: 92 },
+      { label: "CB",  x: 25, y: 76 },
+      { label: "CB",  x: 50, y: 78 },
+      { label: "CB",  x: 75, y: 76 },
       { label: "LWB", x: 12, y: 52 },
-      { label: "CM", x: 35, y: 55 },
+      { label: "CM",  x: 35, y: 55 },
       { label: "CDM", x: 50, y: 60 },
-      { label: "CM", x: 65, y: 55 },
+      { label: "CM",  x: 65, y: 55 },
       { label: "RWB", x: 88, y: 52 },
-      { label: "ST", x: 38, y: 22 },
-      { label: "ST", x: 62, y: 22 },
+      { label: "ST",  x: 38, y: 22 },
+      { label: "ST",  x: 62, y: 22 },
     ],
     links: [
       [0, 1], [0, 2], [0, 3],
@@ -110,17 +135,17 @@ export const FORMATIONS: Record<string, Formation> = {
   "4-2-3-1": {
     name: "4-2-3-1",
     positions: [
-      { label: "GK", x: 50, y: 92 },
-      { label: "LB", x: 15, y: 72 },
-      { label: "CB", x: 38, y: 76 },
-      { label: "CB", x: 62, y: 76 },
-      { label: "RB", x: 85, y: 72 },
+      { label: "GK",  x: 50, y: 92 },
+      { label: "LB",  x: 15, y: 72 },
+      { label: "CB",  x: 38, y: 76 },
+      { label: "CB",  x: 62, y: 76 },
+      { label: "RB",  x: 85, y: 72 },
       { label: "CDM", x: 38, y: 58 },
       { label: "CDM", x: 62, y: 58 },
       { label: "LAM", x: 20, y: 38 },
       { label: "CAM", x: 50, y: 34 },
       { label: "RAM", x: 80, y: 38 },
-      { label: "ST", x: 50, y: 18 },
+      { label: "ST",  x: 50, y: 18 },
     ],
     links: [
       [0, 2], [0, 3],

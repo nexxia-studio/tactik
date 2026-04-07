@@ -82,7 +82,7 @@ export default function Composition() {
     [rawMatches]
   );
 
-  const [selectedFormation, setSelectedFormation] = useState("4-3-3");
+  const [selectedFormation, setSelectedFormation] = useState("4-3-3 défensif");
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const formation = FORMATIONS[selectedFormation];
 

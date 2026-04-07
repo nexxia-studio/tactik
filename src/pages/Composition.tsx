@@ -14,6 +14,7 @@ import { usePlayers } from "@/hooks/usePlayers";
 import { useMatchesByOrg } from "@/hooks/useMatches";
 import { useActiveUnavailabilities } from "@/hooks/usePlayerUnavailabilities";
 import { useLineup, useUpsertLineup } from "@/hooks/useLineup";
+import { supabase } from "@/integrations/supabase/client";
 import type { Player } from "@/hooks/usePlayers";
 
 const MAX_SUBSTITUTES = 4;
@@ -117,6 +118,12 @@ export default function Composition() {
   // after the first upsert changes lineupData.id (undefined → uuid), which would
   // overwrite in-progress user state.
   const initialLoadDoneRef = useRef<string | null>(null);
+  // Tracks latest unsaved payload so it can be flushed on unmount (navigation
+  // cancels the 1s debounce timer, so we fire the save synchronously on cleanup)
+  const dirtyRef = useRef<{
+    team_id: string; match_id: string; formation: string;
+    players: (string | null)[]; substitute_ids: string[];
+  } | null>(null);
   const upsertLineup = useUpsertLineup();
 
   // Auto-select the next upcoming match on first load
@@ -182,20 +189,42 @@ export default function Composition() {
   // effect to fire immediately when the gate opened (setReadyMatchId called by the
   // load effect), which saved the default formation to DB when no lineup existed yet.
   // The guard is still evaluated from the closure on each run.
+  // dirtyRef tracks the latest pending payload so the unmount flush can send it
+  // if navigation cancels the timer before it fires.
   useEffect(() => {
-    if (!teamId || !selectedMatchId || readyMatchId !== selectedMatchId || isReadonly) return;
+    if (!teamId || !selectedMatchId || readyMatchId !== selectedMatchId || isReadonly) {
+      dirtyRef.current = null;
+      return;
+    }
+    const payload = {
+      team_id: teamId,
+      match_id: selectedMatchId,
+      formation: selectedFormation,
+      players: assignedIds,
+      substitute_ids: substituteIds,
+    };
+    dirtyRef.current = payload;
     const timer = setTimeout(() => {
-      upsertLineup.mutate({
-        team_id: teamId,
-        match_id: selectedMatchId,
-        formation: selectedFormation,
-        players: assignedIds,
-        substitute_ids: substituteIds,
-      });
+      dirtyRef.current = null;
+      upsertLineup.mutate(payload);
     }, 1000);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignedIds, substituteIds, selectedFormation]);
+
+  // Flush any unsaved changes immediately on unmount (e.g. user navigates away
+  // before the 1s debounce fires — without this the save would be silently lost)
+  useEffect(() => {
+    return () => {
+      const payload = dirtyRef.current;
+      if (payload) {
+        (supabase as any)
+          .from("lineups")
+          .upsert({ ...payload, updated_at: new Date().toISOString() }, { onConflict: "team_id,match_id" });
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const playersWithStatus = useMemo(
     () => futPlayers.map((p) => {

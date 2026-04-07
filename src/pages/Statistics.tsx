@@ -25,7 +25,7 @@ export default function Statistics() {
         </p>
       </div>
 
-      <TeamStatsOverview stats={teamStats} isLoading={isLoading} />
+      <TeamStatsOverview teamId={teamId} stats={teamStats} isLoading={isLoading} />
 
       <PlayerStatsTable
         players={players ?? []}

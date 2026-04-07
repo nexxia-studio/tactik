@@ -132,6 +132,56 @@ export function useTrainingsAttendanceCounts(trainingIds: string[]) {
   });
 }
 
+/** Team-level attendance rate over the last `days` days */
+export function useTeamAttendanceRate(teamId: string | undefined, days = 30) {
+  return useQuery({
+    queryKey: ["team_attendance_rate", teamId, days],
+    enabled: !!teamId,
+    queryFn: async () => {
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+
+      // 1. Trainings in window
+      const { data: trainings, error: tErr } = await supabase
+        .from("trainings")
+        .select("id")
+        .eq("team_id", teamId!)
+        .gte("scheduled_at", since.toISOString())
+        .lte("scheduled_at", new Date().toISOString());
+      if (tErr) throw tErr;
+      if (!trainings?.length) return { rate: null, presences: 0, sessions: 0 };
+
+      const trainingIds = trainings.map((t) => t.id);
+
+      // 2. Attendance + player count in parallel
+      const [{ data: attendance, error: aErr }, { count: playerCount, error: pErr }] =
+        await Promise.all([
+          supabase
+            .from("training_attendance")
+            .select("status")
+            .in("training_id", trainingIds),
+          supabase
+            .from("players")
+            .select("id", { count: "exact", head: true })
+            .eq("team_id", teamId!),
+        ]);
+      if (aErr) throw aErr;
+      if (pErr) throw pErr;
+
+      const presences = (attendance ?? []).filter(
+        (a) => a.status === "present" || a.status === "late",
+      ).length;
+      const sessions = trainingIds.length;
+      const total = (playerCount ?? 0) * sessions;
+      const rate = total > 0
+        ? Math.round((presences / total) * 1000) / 10  // 1 decimal
+        : null;
+
+      return { rate, presences, sessions };
+    },
+  });
+}
+
 /** Fetch presence counts per player across a set of trainings (for stats table) */
 export function usePlayerAttendanceStats(trainingIds: string[]) {
   const key = trainingIds.slice().sort().join(",");

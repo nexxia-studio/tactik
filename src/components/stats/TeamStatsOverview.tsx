@@ -1,8 +1,9 @@
-import { Trophy, Target, Shield, TrendingUp, Users, BarChart3 } from "lucide-react";
+import { Trophy, Target, Shield, UserCheck, Users, BarChart3 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
 import type { TeamStatsData } from "@/hooks/useTeamStats";
+import { useTeamAttendanceRate } from "@/hooks/useTrainings";
 
 const PIE_COLORS = ["var(--color-success)", "var(--color-warning)", "var(--color-danger)"];
 
@@ -51,13 +52,16 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 interface TeamStatsOverviewProps {
+  teamId: string | undefined;
   stats: TeamStatsData | undefined;
   isLoading: boolean;
 }
 
-export function TeamStatsOverview({ stats, isLoading }: TeamStatsOverviewProps) {
+export function TeamStatsOverview({ teamId, stats, isLoading }: TeamStatsOverviewProps) {
   const loading = isLoading || !stats;
   const s = stats;
+
+  const { data: attendance } = useTeamAttendanceRate(teamId, 30);
 
   const winRate = s && s.matchesPlayed > 0
     ? Math.round((s.wins / s.matchesPlayed) * 100)
@@ -101,11 +105,21 @@ export function TeamStatsOverview({ stats, isLoading }: TeamStatsOverviewProps) 
           loading={loading}
         />
         <StatCard
-          icon={TrendingUp}
-          label="NOTE MOYENNE"
-          value={s?.avgRating != null ? s.avgRating.toFixed(1) : "—"}
-          sub="Sur l'ensemble de la saison"
-          loading={loading}
+          icon={UserCheck}
+          label="PRÉSENCE 30J"
+          value={attendance?.rate != null ? `${attendance.rate}%` : "—"}
+          sub={
+            attendance?.sessions
+              ? `${attendance.presences} présences sur ${attendance.sessions} séance${attendance.sessions > 1 ? "s" : ""}`
+              : "Aucune séance ce mois"
+          }
+          accent={
+            attendance?.rate == null ? undefined :
+            attendance.rate >= 75 ? "text-[var(--color-success)]" :
+            attendance.rate >= 50 ? "text-[var(--color-warning)]" :
+            "text-[var(--color-danger)]"
+          }
+          loading={false}
         />
       </div>
 

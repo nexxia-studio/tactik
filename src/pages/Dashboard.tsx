@@ -123,7 +123,8 @@ function SquadAvailabilityChart({ teamId }: { teamId: string | undefined }) {
                   innerRadius={68}
                   dataKey="value"
                   isAnimationActive
-                  animationDuration={800}
+                  animationBegin={0}
+                  animationDuration={1200}
                   animationEasing="ease-out"
                   stroke="var(--bg-surface-1)"
                   strokeWidth={2}

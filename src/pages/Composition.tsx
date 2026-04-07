@@ -13,6 +13,7 @@ import { useActiveTeam } from "@/contexts/TeamContext";
 import { usePlayers } from "@/hooks/usePlayers";
 import { useMatchesByOrg } from "@/hooks/useMatches";
 import { useActiveUnavailabilities } from "@/hooks/usePlayerUnavailabilities";
+import { useLineup, useUpsertLineup } from "@/hooks/useLineup";
 import type { Player } from "@/hooks/usePlayers";
 
 const MAX_SUBSTITUTES = 4;
@@ -108,13 +109,11 @@ export default function Composition() {
   const [substituteIds, setSubstituteIds] = useState<string[]>([]);
   const [playerStatuses, setPlayerStatuses] = useState<Record<string, PlayerStatus>>({});
   const [overriddenDbIds, setOverriddenDbIds] = useState<Set<string>>(new Set());
-  const [initialized, setInitialized] = useState(false);
+  // readyMatchId: the match whose lineup is currently loaded in state (gates auto-save)
+  const [readyMatchId, setReadyMatchId] = useState<string | null>(null);
+  const [statusInitialized, setStatusInitialized] = useState(false);
   const autoSelectedRef = useRef(false);
-
-  // Reset per-match overrides when the selected match changes
-  useEffect(() => {
-    setOverriddenDbIds(new Set());
-  }, [selectedMatchId]);
+  const upsertLineup = useUpsertLineup();
 
   // Auto-select the next upcoming match on first load
   useEffect(() => {
@@ -136,20 +135,54 @@ export default function Composition() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dbUnavailableKey]);
 
-  // Initialize state from real players on first load
+  // Initialize player statuses once (does NOT touch assignedIds — that comes from lineup)
   useEffect(() => {
-    if (initialized || futPlayers.length === 0) return;
-    const available = futPlayers.filter((p) => p.status === "available");
-    const slots = formation.positions.length;
-    const ids = available.slice(0, slots).map((p) => p.id);
-    while (ids.length < slots) ids.push(null as any);
-    setAssignedIds(ids);
-    setSubstituteIds(available.slice(slots, slots + MAX_SUBSTITUTES).map((p) => p.id));
+    if (statusInitialized || futPlayers.length === 0) return;
     const statuses: Record<string, PlayerStatus> = {};
     futPlayers.forEach((p) => { statuses[p.id] = p.status; });
     setPlayerStatuses(statuses);
-    setInitialized(true);
-  }, [futPlayers, initialized, formation.positions.length]);
+    setStatusInitialized(true);
+  }, [futPlayers, statusInitialized]);
+
+  // Reset when match changes — clear pitch/bench and disable auto-save gate
+  useEffect(() => {
+    setReadyMatchId(null);
+    setOverriddenDbIds(new Set());
+    setAssignedIds([]);
+    setSubstituteIds([]);
+  }, [selectedMatchId]);
+
+  // Fetch persisted lineup for the selected match
+  const { data: lineupData, isSuccess: lineupLoaded } = useLineup(teamId, selectedMatchId);
+
+  // Load lineup into state when fetch completes, then open the save gate
+  useEffect(() => {
+    if (!selectedMatchId || !lineupLoaded) return;
+    if (lineupData) {
+      setSelectedFormation(lineupData.formation);
+      setAssignedIds(lineupData.slots);
+      setSubstituteIds(lineupData.substitute_ids);
+    }
+    // Open save gate after state is committed — React 18 batches the above
+    setReadyMatchId(selectedMatchId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineupLoaded, lineupData?.id, selectedMatchId]);
+
+  // Auto-save (1s debounce) — only fires when readyMatchId === selectedMatchId
+  useEffect(() => {
+    if (!teamId || !selectedMatchId || readyMatchId !== selectedMatchId || isReadonly) return;
+    const timer = setTimeout(() => {
+      upsertLineup.mutate({
+        team_id: teamId,
+        match_id: selectedMatchId,
+        formation: selectedFormation,
+        slots: assignedIds,
+        substitute_ids: substituteIds,
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignedIds, substituteIds, selectedFormation, readyMatchId]);
 
   const playersWithStatus = useMemo(
     () => futPlayers.map((p) => {
@@ -352,7 +385,13 @@ export default function Composition() {
                   <div>
                     <button
                       disabled={!selectedMatchId || isReadonly}
-                      onClick={() => toast.success("Composition sauvegardée ✓")}
+                      onClick={() => {
+                        if (!teamId || !selectedMatchId) return;
+                        upsertLineup.mutate(
+                          { team_id: teamId, match_id: selectedMatchId, formation: selectedFormation, slots: assignedIds, substitute_ids: substituteIds },
+                          { onSuccess: () => toast.success("Composition sauvegardée ✓") }
+                        );
+                      }}
                       className="w-full py-3 rounded-xl font-ui text-[var(--text-body)] uppercase tracking-wider bg-bg-surface-2 text-t-primary border border-b-subtle hover:bg-bg-surface-3 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       <Save className="w-4 h-4" />

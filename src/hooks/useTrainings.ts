@@ -132,6 +132,29 @@ export function useTrainingsAttendanceCounts(trainingIds: string[]) {
   });
 }
 
+/** Fetch presence counts per player across a set of trainings (for stats table) */
+export function usePlayerAttendanceStats(trainingIds: string[]) {
+  const key = trainingIds.slice().sort().join(",");
+  return useQuery({
+    queryKey: ["player_attendance_stats", key],
+    enabled: trainingIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("training_attendance")
+        .select("player_id, status")
+        .in("training_id", trainingIds);
+      if (error) throw error;
+      const presences: Record<string, number> = {};
+      for (const att of data ?? []) {
+        if (att.status === "present" || att.status === "late") {
+          presences[att.player_id] = (presences[att.player_id] ?? 0) + 1;
+        }
+      }
+      return presences; // player_id → present count
+    },
+  });
+}
+
 export function useUpsertAttendance() {
   const qc = useQueryClient();
   return useMutation({

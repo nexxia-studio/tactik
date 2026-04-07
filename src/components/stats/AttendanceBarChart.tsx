@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
@@ -38,31 +38,10 @@ export function AttendanceBarChart({ data, loading, compact, limit }: Props) {
   const chartHeight = compact ? 140 : 220;
   const displayed = limit ? data.slice(-limit) : data;
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
   const [visibleCount, setVisibleCount] = useState(0);
   const displayedKey = displayed.map((d) => d.date).join(",");
 
-  // Trigger animation only when chart enters the viewport
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.3 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  // Cascade animation — gated on viewport visibility
-  useEffect(() => {
-    if (!isVisible) return;
     setVisibleCount(0);
     if (!displayed.length) return;
     let count = 0;
@@ -73,7 +52,7 @@ export function AttendanceBarChart({ data, loading, compact, limit }: Props) {
     }, 150);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isVisible, displayedKey]);
+  }, [displayedKey]);
 
   // Keep all bars in the dataset so X-axis labels stay stable;
   // force hidden bars to 0 so Recharts animates them up on reveal.
@@ -104,7 +83,7 @@ export function AttendanceBarChart({ data, loading, compact, limit }: Props) {
   }
 
   return (
-    <div ref={containerRef} style={{ height: chartHeight, opacity: isVisible ? 1 : 0 }}>
+    <div style={{ height: chartHeight }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           key={displayedKey}

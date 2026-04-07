@@ -22,11 +22,21 @@ const MAX_SUBSTITUTES = 4;
 
 function mapPositionToFUT(pos: string | null): string {
   switch (pos) {
-    case "Gardien":   return "GK";
-    case "Défenseur": return "CB";
-    case "Milieu":    return "CM";
-    case "Attaquant": return "ST";
-    default:          return "CM";
+    case "Gardien":           return "GK";
+    case "Défenseur":
+    case "Défenseur central": return "CB";
+    case "Arrière droit":     return "RB";
+    case "Arrière gauche":    return "LB";
+    case "Milieu":
+    case "Milieu central":    return "CM";
+    case "Milieu défensif":   return "CDM";
+    case "Milieu offensif":   return "CAM";
+    case "Ailier droit":      return "RW";
+    case "Ailier gauche":     return "LW";
+    case "Attaquant":
+    case "Avant-centre":
+    case "Attaquant centre":  return "ST";
+    default:                  return "CM";
   }
 }
 

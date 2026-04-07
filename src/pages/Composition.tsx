@@ -158,7 +158,6 @@ export default function Composition() {
   // Load lineup into state when fetch completes, then open the save gate
   useEffect(() => {
     if (!selectedMatchId || !lineupLoaded) return;
-    console.log("[Composition] load effect — lineupData:", lineupData, "selectedMatchId:", selectedMatchId);
     if (lineupData) {
       setSelectedFormation(lineupData.formation);
       setAssignedIds(lineupData.players);
@@ -171,10 +170,8 @@ export default function Composition() {
 
   // Auto-save (1s debounce) — only fires when readyMatchId === selectedMatchId
   useEffect(() => {
-    console.log("[Composition] auto-save check — teamId:", teamId, "selectedMatchId:", selectedMatchId, "readyMatchId:", readyMatchId, "isReadonly:", isReadonly);
     if (!teamId || !selectedMatchId || readyMatchId !== selectedMatchId || isReadonly) return;
     const timer = setTimeout(() => {
-      console.log("[Composition] auto-save firing — players:", assignedIds, "subs:", substituteIds);
       upsertLineup.mutate({
         team_id: teamId,
         match_id: selectedMatchId,

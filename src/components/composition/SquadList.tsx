@@ -70,6 +70,7 @@ function PlayerRow({
   const [pendingStatus, setPendingStatus] = useState<PlayerStatus | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
 
   const statusMeta = player.status !== "available" ? STATUS_INFO[player.status] : null;
   const isDraggable = !!dragType && !isUnavailable;
@@ -93,15 +94,24 @@ function PlayerRow({
     openPanel();
   };
 
-  const handleTouchStart = () => {
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     longPressTimer.current = setTimeout(openPanel, 500);
   };
 
   const handleTouchEnd = () => {
+    touchStartPos.current = null;
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartPos.current || !longPressTimer.current) return;
+    const dx = Math.abs(e.touches[0].clientX - touchStartPos.current.x);
+    const dy = Math.abs(e.touches[0].clientY - touchStartPos.current.y);
+    if (dx > 10 || dy > 10) handleTouchEnd();
   };
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -120,7 +130,7 @@ function PlayerRow({
       onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      onTouchMove={handleTouchEnd}
+      onTouchMove={handleTouchMove}
     >
       <button
         onClick={onClick}
@@ -137,7 +147,7 @@ function PlayerRow({
                 : "bg-bg-surface-2 border border-b-subtle hover:bg-bg-surface-3 cursor-pointer"
         } ${isDraggable ? "cursor-grab active:cursor-grabbing" : ""}`}
       >
-        <span className="font-display text-[13px] text-t-muted w-6 text-center shrink-0">
+        <span className="font-ui text-[11px] text-t-muted w-7 text-center shrink-0 tabular-nums">
           #{player.jerseyNumber}
         </span>
 

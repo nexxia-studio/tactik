@@ -147,7 +147,7 @@ function PlayerRow({
         {STATUS_OPTIONS.map((opt) => (
           <ContextMenuItem
             key={opt.value}
-            onClick={() => onChangeStatus(opt.value)}
+            onSelect={() => onChangeStatus(opt.value)}
             className={`font-ui text-[12px] cursor-pointer ${
               player.status === opt.value ? "text-primary font-semibold" : "text-t-primary"
             }`}

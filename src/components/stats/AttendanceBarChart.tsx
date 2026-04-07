@@ -12,11 +12,10 @@ function barColor(pct: number): string {
 function CustomTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
   const d: AttendanceChartPoint = payload[0].payload;
-  const color = barColor(d.percentage);
   return (
-    <div className="bg-bg-surface-1/95 border border-b-subtle rounded-xl px-4 py-3 shadow-xl backdrop-blur-sm">
+    <div className="bg-bg-surface-1 border border-b-subtle rounded-xl px-4 py-3 shadow-xl">
       <p className="font-ui text-[11px] text-t-muted uppercase tracking-wider mb-1">{d.label}</p>
-      <p className="font-display text-[28px] leading-none font-bold" style={{ color }}>
+      <p className="font-display text-[28px] leading-none font-bold text-t-primary">
         {d.percentage}%
       </p>
       <p className="font-ui text-[12px] text-t-secondary mt-1">

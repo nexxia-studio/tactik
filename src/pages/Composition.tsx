@@ -388,7 +388,7 @@ export default function Composition() {
                       onClick={() => {
                         if (!teamId || !selectedMatchId) return;
                         upsertLineup.mutate(
-                          { team_id: teamId, match_id: selectedMatchId, formation: selectedFormation, slots: assignedIds, substitute_ids: substituteIds },
+                          { team_id: teamId, match_id: selectedMatchId, formation: selectedFormation, players: assignedIds, substitute_ids: substituteIds },
                           { onSuccess: () => toast.success("Composition sauvegardée ✓") }
                         );
                       }}

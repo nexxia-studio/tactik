@@ -406,7 +406,7 @@ export function SquadList({
                       ? () => onToggleSubstitute(player.id)
                       : mode === "non-selected"
                         ? () => {
-                            const pitchFull = assignedIds.every((id) => id !== null);
+                            const pitchFull = assignedIds.filter(Boolean).length >= positionLabels.length;
                             if (!pitchFull) {
                               onAddPlayer(player.id);
                             } else {

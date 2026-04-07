@@ -160,7 +160,7 @@ export default function Composition() {
     if (!selectedMatchId || !lineupLoaded) return;
     if (lineupData) {
       setSelectedFormation(lineupData.formation);
-      setAssignedIds(lineupData.slots);
+      setAssignedIds(lineupData.players);
       setSubstituteIds(lineupData.substitute_ids);
     }
     // Open save gate after state is committed — React 18 batches the above
@@ -176,7 +176,7 @@ export default function Composition() {
         team_id: teamId,
         match_id: selectedMatchId,
         formation: selectedFormation,
-        slots: assignedIds,
+        players: assignedIds,
         substitute_ids: substituteIds,
       });
     }, 1000);

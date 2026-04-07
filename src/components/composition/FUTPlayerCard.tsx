@@ -31,7 +31,7 @@ export function FUTPlayerCard({ player, positionLabel, compact }: Props) {
           #{player.jerseyNumber}
         </span>
         {/* Name — inside card, bottom */}
-        <span className="font-ui text-[8px] sm:text-[9px] text-white uppercase tracking-wide leading-none w-full text-center truncate px-0.5">
+        <span className="font-ui text-[8px] sm:text-[9px] text-t-primary uppercase tracking-wide leading-none w-full text-center truncate px-0.5">
           {player.lastName.slice(0, 8)}
         </span>
       </div>

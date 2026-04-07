@@ -1,5 +1,5 @@
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
 import type { AttendanceChartPoint } from "@/hooks/useTrainings";
 
@@ -12,14 +12,15 @@ function barColor(pct: number): string {
 function CustomTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
   const d: AttendanceChartPoint = payload[0].payload;
+  const color = barColor(d.percentage);
   return (
-    <div className="bg-bg-surface-2 border border-b-subtle rounded-lg px-3 py-2 shadow-lg">
-      <p className="font-ui text-[12px] text-t-primary font-semibold mb-0.5">{d.label}</p>
-      <p className="font-ui text-[11px] text-t-secondary">
-        {d.presentCount} joueur{d.presentCount !== 1 ? "s" : ""} présent{d.presentCount !== 1 ? "s" : ""} sur {d.totalPlayers}
-      </p>
-      <p className="font-ui text-[11px] font-semibold mt-0.5" style={{ color: barColor(d.percentage) }}>
+    <div className="bg-bg-surface-1/95 border border-b-subtle rounded-xl px-4 py-3 shadow-xl backdrop-blur-sm">
+      <p className="font-ui text-[11px] text-t-muted uppercase tracking-wider mb-1">{d.label}</p>
+      <p className="font-display text-[28px] leading-none font-bold" style={{ color }}>
         {d.percentage}%
+      </p>
+      <p className="font-ui text-[12px] text-t-secondary mt-1">
+        {d.presentCount}/{d.totalPlayers} joueurs
       </p>
     </div>
   );
@@ -34,7 +35,7 @@ interface Props {
 }
 
 export function AttendanceBarChart({ data, loading, compact, limit }: Props) {
-  const chartHeight = compact ? 120 : 200;
+  const chartHeight = compact ? 140 : 220;
   const displayed = limit ? data.slice(-limit) : data;
 
   if (loading) {
@@ -62,7 +63,12 @@ export function AttendanceBarChart({ data, loading, compact, limit }: Props) {
   return (
     <div style={{ height: chartHeight }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={displayed} barGap={4} barCategoryGap={compact ? "30%" : "25%"}>
+        <BarChart
+          data={displayed}
+          barGap={4}
+          barCategoryGap={compact ? "30%" : "25%"}
+          margin={{ top: 20, right: 4, left: 0, bottom: 0 }}
+        >
           <XAxis
             dataKey="label"
             tick={{ fontSize: 10, fill: "var(--text-secondary)", fontFamily: "var(--font-ui)" }}
@@ -83,6 +89,14 @@ export function AttendanceBarChart({ data, loading, compact, limit }: Props) {
             {displayed.map((entry, i) => (
               <Cell key={i} fill={barColor(entry.percentage)} fillOpacity={0.85} />
             ))}
+            <LabelList
+              dataKey="percentage"
+              position="top"
+              fontSize={11}
+              fontFamily="var(--font-ui)"
+              formatter={(v: number) => `${v}%`}
+              fill="var(--text-secondary)"
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>

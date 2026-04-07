@@ -1,4 +1,5 @@
 import { Calendar, Dumbbell, TrendingUp, Users, Wallet, ChevronRight } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useActiveTeam } from "@/contexts/TeamContext";
 import type { DashboardMatch } from "@/hooks/useDashboard";
@@ -83,38 +84,75 @@ function StatCard({
   );
 }
 
-function AvailabilityCard({ teamId }: { teamId: string | undefined }) {
+function SquadAvailabilityChart({ teamId }: { teamId: string | undefined }) {
   const { data, isLoading } = useSquadAvailability(teamId);
 
+  const chartData = data
+    ? [
+        { name: "available",   value: Math.max(data.available, 0) },
+        { name: "unavailable", value: Math.max(data.unavailable, 0) },
+      ]
+    : [];
+
   return (
-    <div className="bg-bg-surface-1 border border-b-subtle rounded-xl p-4 animate-fade-in col-span-2 lg:col-span-1">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="p-2 rounded-lg bg-primary-dim">
-          <Users className="h-4 w-4 text-primary" />
-        </div>
-        <span className="text-label">EFFECTIF</span>
+    <div className="bg-bg-surface-1 border border-b-subtle rounded-xl p-5 animate-fade-in">
+      <div className="flex items-center gap-2 mb-4">
+        <Users className="h-4 w-4 text-primary" />
+        <span className="text-label">DISPONIBILITÉ EFFECTIF</span>
       </div>
 
       {isLoading || !data ? (
-        <div className="h-8 w-24 bg-bg-surface-2 rounded animate-pulse" />
+        <div className="h-[140px] bg-bg-surface-2 rounded-lg animate-pulse" />
+      ) : data.total === 0 ? (
+        <div className="h-[140px] flex items-center justify-center">
+          <p className="font-ui text-[13px] text-t-muted">Aucun joueur dans l'effectif</p>
+        </div>
       ) : (
         <>
-          <p className="font-display text-t-primary leading-none tracking-tight" style={{ fontSize: "clamp(18px, 3vw, 24px)" }}>
-            {data.available} / {data.total}
-          </p>
-          <p className={`text-[12px] font-ui mt-1.5 ${data.unavailable > 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}>
-            {data.unavailable > 0
-              ? `${data.unavailable} indisponible${data.unavailable > 1 ? "s" : ""}`
-              : "Effectif complet"}
-          </p>
-          {data.total > 0 && (
-            <div className="mt-3 h-1.5 rounded-full bg-bg-surface-3 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-[var(--color-success)] transition-all"
-                style={{ width: `${Math.round((data.available / data.total) * 100)}%` }}
-              />
+          {/* Semi-circle chart */}
+          <div className="relative" style={{ height: 140 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="100%"
+                  startAngle={180}
+                  endAngle={0}
+                  outerRadius={110}
+                  innerRadius={68}
+                  dataKey="value"
+                  isAnimationActive
+                  animationDuration={800}
+                  animationEasing="ease-out"
+                  stroke="var(--bg-surface-1)"
+                  strokeWidth={2}
+                >
+                  <Cell fill="var(--color-success)" fillOpacity={0.9} />
+                  <Cell fill="var(--color-danger)"  fillOpacity={0.9} />
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+            {/* Center label — anchored to the flat base of the semicircle */}
+            <div className="absolute inset-x-0 bottom-0 flex flex-col items-center">
+              <p className="font-display text-t-primary leading-none tracking-tight" style={{ fontSize: "clamp(20px, 3.5vw, 26px)" }}>
+                {data.available}/{data.total}
+              </p>
+              <p className="font-ui text-[11px] text-t-muted mt-1">Disponibles</p>
             </div>
-          )}
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-6 mt-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-success)]" />
+              <span className="font-ui text-[12px] text-t-secondary">{data.available} Disponibles</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-danger)]" />
+              <span className="font-ui text-[12px] text-t-secondary">{data.unavailable} Indisponibles</span>
+            </div>
+          </div>
         </>
       )}
     </div>
@@ -180,7 +218,6 @@ export default function Dashboard() {
         <StatCard icon={Dumbbell}  label="ENTRAÎNEMENT"    value={nextTrainingValue} sub={nextTrainingSub} loading={isLoading || !data} />
         <StatCard icon={Users}     label="PRÉSENCES 30J"   value={attendanceValue}   sub={attendanceSub}   loading={isLoading || !data} />
         <StatCard icon={Wallet}    label="CAGNOTTE"         value={balanceValue}      sub={balanceSub}      loading={isLoading || !data} />
-        <AvailabilityCard teamId={teamId} />
       </div>
 
       {/* Attendance chart — compact, last 5 sessions */}
@@ -263,6 +300,9 @@ export default function Dashboard() {
           </>
         )}
       </div>
+
+      {/* Squad availability donut */}
+      <SquadAvailabilityChart teamId={teamId} />
     </div>
   );
 }

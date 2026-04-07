@@ -11,6 +11,7 @@ interface Props {
   onDropBenchPlayer?: (playerId: string, toSlot: number) => void;
   onRemovePlayer?: (playerId: string) => void;
   readonly?: boolean;
+  className?: string;
 }
 
 type ChemLevel = "optimal" | "good" | "weak" | "bad";
@@ -37,7 +38,7 @@ export function computeChemScore(formation: Formation, players: (FUTPlayer | nul
   return max > 0 ? Math.round((total / max) * 100) : 0;
 }
 
-export function PitchView({ formation, players, onSwapSlots, onDropBenchPlayer, onRemovePlayer, readonly = false }: Props) {
+export function PitchView({ formation, players, onSwapSlots, onDropBenchPlayer, onRemovePlayer, readonly = false, className }: Props) {
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
   // Click-to-select state: which pitch slot is currently selected
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
@@ -95,7 +96,7 @@ export function PitchView({ formation, players, onSwapSlots, onDropBenchPlayer, 
   );
 
   return (
-    <div className="relative w-full" style={{ aspectRatio: "5 / 7", minHeight: "320px" }}>
+    <div className={`relative w-full ${className ?? ""}`} style={{ aspectRatio: "5 / 7", minHeight: "320px" }}>
       {/* Pitch background — click to deselect */}
       <div
         className="absolute inset-0 rounded-xl overflow-hidden bg-[#1a3a1a] border border-b-subtle"

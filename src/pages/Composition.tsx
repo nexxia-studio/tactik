@@ -257,9 +257,9 @@ export default function Composition() {
   };
 
   return (
-    <div className="space-y-4 pb-20 lg:pb-0">
-      {/* Header — title only */}
-      <div>
+    <div className="flex flex-col gap-4 pb-20 lg:pb-0 lg:gap-3 lg:h-[calc(100vh-4rem)] lg:overflow-hidden">
+      {/* Header */}
+      <div className="shrink-0">
         <h1 className="font-display text-t-primary leading-none" style={{ fontSize: "var(--text-h1)" }}>
           COMPOSITION
         </h1>
@@ -268,11 +268,14 @@ export default function Composition() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pitch — first visible element — then controls below */}
-        <div className="lg:col-span-2 space-y-3 min-w-0">
-          {/* Width is capped so pitch height never exceeds viewport */}
-          <div style={{ width: "min(100%, calc((100vh - 7rem) * 5 / 7))" }}>
+      {/* Main grid — fills remaining height on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:flex-1 lg:min-h-0 lg:grid-rows-1">
+
+        {/* Left col — pitch + controls */}
+        <div className="lg:col-span-2 flex flex-col gap-3 min-w-0 lg:min-h-0">
+
+          {/* Pitch — flex-1 on desktop so it fills available height */}
+          <div className="lg:flex-1 lg:min-h-0">
             <PitchView
               formation={formation}
               players={assignedPlayers}
@@ -280,11 +283,12 @@ export default function Composition() {
               onDropBenchPlayer={placeBenchPlayer}
               onRemovePlayer={removePlayer}
               readonly={isReadonly}
+              className="lg:h-full lg:w-auto"
             />
           </div>
 
           {/* Formation selector */}
-          <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="shrink-0 flex items-center justify-between gap-3 flex-wrap">
             <div>
               {isReadonly && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-ui text-[var(--text-small)] uppercase tracking-wider bg-[var(--color-danger)]/15 text-[var(--color-danger)] border border-[var(--color-danger)]/20">
@@ -310,41 +314,41 @@ export default function Composition() {
             </div>
           </div>
 
-          {/* Match selector */}
-          <MatchSelector selectedMatchId={selectedMatchId} onSelect={setSelectedMatchId} matches={compositionMatches} />
-          {rawMatches.length > 0 && compositionMatches.filter((m) => !m.played && m.date >= today).length === 0 && (
-            <p className="font-ui text-[var(--text-small)] text-t-muted">
-              Aucun match à venir — seuls les matchs passés sont disponibles.
-            </p>
-          )}
-
-          {/* Save button */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div>
-                  <button
-                    disabled={!selectedMatchId || isReadonly}
-                    onClick={() => toast.success("Composition sauvegardée ✓")}
-                    className="w-full py-3 rounded-xl font-ui text-[var(--text-body)] uppercase tracking-wider bg-bg-surface-2 text-t-primary border border-b-subtle hover:bg-bg-surface-3 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    Sauvegarder
-                  </button>
-                </div>
-              </TooltipTrigger>
-              {isReadonly && (
-                <TooltipContent className="bg-bg-surface-2 border-b-subtle font-ui text-[var(--text-small)]">
-                  Match déjà joué
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
+          {/* Match selector + save */}
+          <div className="shrink-0 space-y-3">
+            <MatchSelector selectedMatchId={selectedMatchId} onSelect={setSelectedMatchId} matches={compositionMatches} />
+            {rawMatches.length > 0 && compositionMatches.filter((m) => !m.played && m.date >= today).length === 0 && (
+              <p className="font-ui text-[var(--text-small)] text-t-muted">
+                Aucun match à venir — seuls les matchs passés sont disponibles.
+              </p>
+            )}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <button
+                      disabled={!selectedMatchId || isReadonly}
+                      onClick={() => toast.success("Composition sauvegardée ✓")}
+                      className="w-full py-3 rounded-xl font-ui text-[var(--text-body)] uppercase tracking-wider bg-bg-surface-2 text-t-primary border border-b-subtle hover:bg-bg-surface-3 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      Sauvegarder
+                    </button>
+                  </div>
+                </TooltipTrigger>
+                {isReadonly && (
+                  <TooltipContent className="bg-bg-surface-2 border-b-subtle font-ui text-[var(--text-small)]">
+                    Match déjà joué
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
 
-        {/* Sidebar — effectif */}
-        <div className="space-y-6">
-          <div className="bg-bg-surface-1 border border-b-subtle rounded-xl p-6 flex flex-col items-center gap-4">
+        {/* Right col — chem score + effectif */}
+        <div className="flex flex-col gap-4 lg:min-h-0">
+          <div className="shrink-0 bg-bg-surface-1 border border-b-subtle rounded-xl p-4 flex flex-col items-center gap-3">
             <span className="font-ui text-[var(--text-label)] text-t-muted uppercase tracking-wider">Score chimie</span>
             <ChemistryScoreRing score={chemScore} />
           </div>
@@ -355,24 +359,26 @@ export default function Composition() {
               const match = compositionMatches.find((m) => m.id === selectedMatchId);
               if (match) navigate(`/communication?opponent=${encodeURIComponent(match.opponent)}`);
             }}
-            className="w-full py-3 rounded-xl font-ui text-[var(--text-body)] uppercase tracking-wider bg-primary text-primary-text hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="shrink-0 w-full py-3 rounded-xl font-ui text-[var(--text-body)] uppercase tracking-wider bg-primary text-primary-text hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Send className="w-4 h-4" />
             Envoyer vers Communication
           </button>
 
-          <SquadList
-            allPlayers={playersWithStatus}
-            assignedIds={assignedIds}
-            substituteIds={substituteIds}
-            onAddPlayer={addPlayer}
-            onRemovePlayer={removePlayer}
-            onToggleSubstitute={toggleSubstitute}
-            onChangeStatus={changePlayerStatus}
-            maxSubstitutes={MAX_SUBSTITUTES}
-            positionLabels={formation.positions.map((p) => p.label)}
-            isFriendly={isFriendly}
-          />
+          <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+            <SquadList
+              allPlayers={playersWithStatus}
+              assignedIds={assignedIds}
+              substituteIds={substituteIds}
+              onAddPlayer={addPlayer}
+              onRemovePlayer={removePlayer}
+              onToggleSubstitute={toggleSubstitute}
+              onChangeStatus={changePlayerStatus}
+              maxSubstitutes={MAX_SUBSTITUTES}
+              positionLabels={formation.positions.map((p) => p.label)}
+              isFriendly={isFriendly}
+            />
+          </div>
         </div>
       </div>
     </div>

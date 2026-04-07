@@ -186,6 +186,75 @@ export function useTeamAttendanceRate(teamId: string | undefined, days = 30) {
   });
 }
 
+export interface AttendanceChartPoint {
+  date: string;         // ISO — for sorting
+  label: string;        // "DD/MM" — X axis
+  presentCount: number;
+  totalPlayers: number;
+  percentage: number;
+}
+
+/** Per-session attendance chart data for the last `days` days */
+export function useAttendanceChartData(teamId: string | undefined, days = 30) {
+  return useQuery({
+    queryKey: ["attendance_chart", teamId, days],
+    enabled: !!teamId,
+    queryFn: async (): Promise<AttendanceChartPoint[]> => {
+      const now = new Date();
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      // 1. Trainings in window + team members count in parallel
+      const [{ data: trainings, error: tErr }, { data: members, error: mErr }] =
+        await Promise.all([
+          supabase
+            .from("trainings")
+            .select("id, scheduled_at")
+            .eq("team_id", teamId!)
+            .neq("status", "cancelled")
+            .gte("scheduled_at", since.toISOString())
+            .lte("scheduled_at", now.toISOString())
+            .order("scheduled_at"),
+          supabase
+            .from("team_members")
+            .select("player_id")
+            .eq("team_id", teamId!)
+            .eq("role", "player")
+            .not("player_id", "is", null),
+        ]);
+      if (tErr) throw tErr;
+      if (mErr) throw mErr;
+      if (!trainings?.length) return [];
+
+      const totalPlayers = (members ?? []).length;
+      const trainingIds = trainings.map((t) => t.id);
+
+      // 2. Attendance for all those trainings
+      const { data: attendance, error: aErr } = await supabase
+        .from("training_attendance")
+        .select("training_id, status")
+        .in("training_id", trainingIds);
+      if (aErr) throw aErr;
+
+      const presentByTraining: Record<string, number> = {};
+      for (const att of attendance ?? []) {
+        if (att.status === "present" || att.status === "late") {
+          presentByTraining[att.training_id] = (presentByTraining[att.training_id] ?? 0) + 1;
+        }
+      }
+
+      return trainings.map((t) => {
+        const presentCount = presentByTraining[t.id] ?? 0;
+        const label = new Date(t.scheduled_at).toLocaleDateString("fr-BE", {
+          day: "2-digit", month: "2-digit",
+        });
+        const percentage =
+          totalPlayers > 0 ? Math.round((presentCount / totalPlayers) * 100) : 0;
+        return { date: t.scheduled_at, label, presentCount, totalPlayers, percentage };
+      });
+    },
+  });
+}
+
 /** Fetch presence counts per player across a set of trainings (for stats table) */
 export function usePlayerAttendanceStats(trainingIds: string[]) {
   const key = trainingIds.slice().sort().join(",");

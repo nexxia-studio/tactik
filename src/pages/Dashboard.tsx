@@ -2,6 +2,8 @@ import { Calendar, Dumbbell, TrendingUp, Users, Wallet, ChevronRight } from "luc
 import { useDashboard } from "@/hooks/useDashboard";
 import { useActiveTeam } from "@/contexts/TeamContext";
 import type { DashboardMatch } from "@/hooks/useDashboard";
+import { AttendanceBarChart } from "@/components/stats/AttendanceBarChart";
+import { useAttendanceChartData } from "@/hooks/useTrainings";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -85,6 +87,7 @@ function StatCard({
 export default function Dashboard() {
   const { activeTeamId: teamId, activeTeam } = useActiveTeam();
   const { data, isLoading } = useDashboard(teamId, activeTeam?.organization_id);
+  const { data: chartData = [], isLoading: chartLoading } = useAttendanceChartData(teamId);
 
   // Stat card values
   const nextMatchValue = data?.nextMatch ? fmtDate(data.nextMatch.match_date) : "—";
@@ -138,6 +141,16 @@ export default function Dashboard() {
         <StatCard icon={Dumbbell}  label="ENTRAÎNEMENT"    value={nextTrainingValue} sub={nextTrainingSub} loading={isLoading || !data} />
         <StatCard icon={Users}     label="PRÉSENCES 30J"   value={attendanceValue}   sub={attendanceSub}   loading={isLoading || !data} />
         <StatCard icon={Wallet}    label="CAGNOTTE"         value={balanceValue}      sub={balanceSub}      loading={isLoading || !data} />
+      </div>
+
+      {/* Attendance chart — compact, last 5 sessions */}
+      <div className="bg-bg-surface-1 border border-b-subtle rounded-xl p-5 animate-fade-in">
+        <div className="flex items-center gap-2 mb-3">
+          <Dumbbell className="h-4 w-4 text-primary" />
+          <span className="text-label">PRÉSENCE AUX ENTRAÎNEMENTS</span>
+          <span className="ml-auto font-ui text-[11px] text-t-muted">5 dernières séances</span>
+        </div>
+        <AttendanceBarChart data={chartData} loading={chartLoading} compact limit={5} />
       </div>
 
       {/* Team Form */}

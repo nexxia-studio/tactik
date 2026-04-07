@@ -1,6 +1,6 @@
+import { useEffect, useState } from "react";
 import { Calendar, Dumbbell, TrendingUp, Users, Wallet, ChevronRight } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { useInView } from "@/hooks/useInView";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useActiveTeam } from "@/contexts/TeamContext";
 import type { DashboardMatch } from "@/hooks/useDashboard";
@@ -87,7 +87,11 @@ function StatCard({
 
 function SquadAvailabilityChart({ teamId }: { teamId: string | undefined }) {
   const { data, isLoading } = useSquadAvailability(teamId);
-  const { ref: chartRef, inView } = useInView(0.3);
+  const [animKey, setAnimKey] = useState(0);
+
+  useEffect(() => {
+    setAnimKey(Date.now());
+  }, []);
 
   const chartData = data
     ? [
@@ -111,10 +115,10 @@ function SquadAvailabilityChart({ teamId }: { teamId: string | undefined }) {
         </div>
       ) : (
         <>
-          {/* Semi-circle chart — ref reserves space, chart mounts when in viewport */}
-          <div ref={chartRef} className="relative" style={{ height: 140 }}>
-            {inView && <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+          {/* Semi-circle chart */}
+          <div className="relative" style={{ height: 140 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart key={animKey}>
                 <Pie
                   data={chartData}
                   cx="50%"
@@ -135,8 +139,8 @@ function SquadAvailabilityChart({ teamId }: { teamId: string | undefined }) {
                   <Cell fill="var(--color-danger)"  fillOpacity={0.9} />
                 </Pie>
               </PieChart>
-            </ResponsiveContainer>}
-            {/* Center label — always visible once data is loaded */}
+            </ResponsiveContainer>
+            {/* Center label — anchored to the flat base of the semicircle */}
             <div className="absolute inset-x-0 bottom-0 flex flex-col items-center">
               <p className="font-display text-t-primary leading-none tracking-tight" style={{ fontSize: "clamp(20px, 3.5vw, 26px)" }}>
                 {data.available}/{data.total}

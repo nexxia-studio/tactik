@@ -3,7 +3,6 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
 import type { AttendanceChartPoint } from "@/hooks/useTrainings";
-import { useInView } from "@/hooks/useInView";
 
 function barColor(pct: number): string {
   if (pct >= 75) return "var(--color-success)";
@@ -39,7 +38,6 @@ export function AttendanceBarChart({ data, loading, compact, limit }: Props) {
   const chartHeight = compact ? 140 : 220;
   const displayed = limit ? data.slice(-limit) : data;
 
-  const { ref, inView } = useInView(0.3);
   const [visibleCount, setVisibleCount] = useState(0);
   const displayedKey = displayed.map((d) => d.date).join(",");
 
@@ -85,8 +83,8 @@ export function AttendanceBarChart({ data, loading, compact, limit }: Props) {
   }
 
   return (
-    <div ref={ref} style={{ height: chartHeight }}>
-      {inView && <ResponsiveContainer width="100%" height="100%">
+    <div style={{ height: chartHeight }}>
+      <ResponsiveContainer width="100%" height="100%">
         <BarChart
           key={displayedKey}
           data={animatedData}
@@ -124,7 +122,7 @@ export function AttendanceBarChart({ data, loading, compact, limit }: Props) {
             />
           </Bar>
         </BarChart>
-      </ResponsiveContainer>}
+      </ResponsiveContainer>
     </div>
   );
 }

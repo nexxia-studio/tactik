@@ -350,30 +350,25 @@ export default function Composition() {
     setSubstituteIds((prev) => prev.filter((id) => id !== playerId));
   }, [isReadonly]);
 
-  const handleFormationChange = (key: string) => {
-    if (isReadonly || !selectedMatchId) return;
+  const handleFormationChange = async (key: string) => {
+    if (isReadonly || !selectedMatchId || !teamId) return;
     const newSize = FORMATIONS[key].positions.length;
-    // Compute truncated/padded assignedIds synchronously so immediate upsert has correct data
     const newAssignedIds = [...assignedIds];
     while (newAssignedIds.length < newSize) newAssignedIds.push(null);
     const truncatedIds = newAssignedIds.slice(0, newSize);
 
     setSelectedFormation(key);
     setAssignedIds(truncatedIds);
-
-    // Persist formation immediately — no debounce — so navigation within 1s never loses it.
-    // Also cache in localStorage as a secondary fallback for the load effect.
     localStorage.setItem(`tactik_formation_${selectedMatchId}`, key);
-    if (teamId && readyMatchId === selectedMatchId) {
-      dirtyRef.current = null; // discard stale pending save; this one is definitive
-      upsertLineup.mutate({
-        team_id: teamId,
-        match_id: selectedMatchId,
-        formation: key,
-        players: truncatedIds,
-        substitute_ids: substituteIds,
-      });
-    }
+
+    // Direct Supabase call — no hook, no debounce, no gate condition
+    const { error } = await (supabase as any)
+      .from("lineups")
+      .upsert(
+        { team_id: teamId, match_id: selectedMatchId, formation: key, players: truncatedIds, substitute_ids: substituteIds, updated_at: new Date().toISOString() },
+        { onConflict: "team_id,match_id" }
+      );
+    console.log("[Formation Save]", key, "team:", teamId, "match:", selectedMatchId, "error:", error);
   };
 
   return (

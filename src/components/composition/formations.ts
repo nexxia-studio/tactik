@@ -41,13 +41,13 @@ export const FORMATIONS: Record<string, Formation> = {
     name: "4-3-3 offensif",
     positions: [
       { label: "GK",  x: 50, y: 92 },
-      { label: "LB",  x: 15, y: 72 },
+      { label: "LB",  x: 15, y: 65 },
       { label: "CB",  x: 38, y: 76 },
       { label: "CB",  x: 62, y: 76 },
-      { label: "RB",  x: 85, y: 72 },
-      { label: "CDM", x: 50, y: 60 }, // triangle inversé : CDM bas
-      { label: "LCM", x: 25, y: 44 }, // LCM/RCM hauts (entre milieu et attaque)
-      { label: "RCM", x: 75, y: 44 },
+      { label: "RB",  x: 85, y: 65 },
+      { label: "CDM", x: 50, y: 55 },
+      { label: "MC",  x: 30, y: 45 },
+      { label: "MC",  x: 70, y: 45 },
       { label: "LW",  x: 18, y: 24 },
       { label: "ST",  x: 50, y: 18 },
       { label: "RW",  x: 82, y: 24 },

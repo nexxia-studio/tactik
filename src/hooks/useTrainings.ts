@@ -154,16 +154,19 @@ export function useTeamAttendanceRate(teamId: string | undefined, days = 30) {
       const trainingIds = trainings.map((t) => t.id);
 
       // 2. Attendance + player count in parallel
-      const [{ data: attendance, error: aErr }, { count: playerCount, error: pErr }] =
+      // players has no team_id column — membership is via team_members
+      const [{ data: attendance, error: aErr }, { data: members, error: pErr }] =
         await Promise.all([
           supabase
             .from("training_attendance")
             .select("status")
             .in("training_id", trainingIds),
           supabase
-            .from("players")
-            .select("id", { count: "exact", head: true })
-            .eq("team_id", teamId!),
+            .from("team_members")
+            .select("player_id")
+            .eq("team_id", teamId!)
+            .eq("role", "player")
+            .not("player_id", "is", null),
         ]);
       if (aErr) throw aErr;
       if (pErr) throw pErr;
@@ -172,12 +175,12 @@ export function useTeamAttendanceRate(teamId: string | undefined, days = 30) {
         (a) => a.status === "present" || a.status === "late",
       ).length;
       const sessions = trainingIds.length;
-      const total = (playerCount ?? 0) * sessions;
+      const playerCount = (members ?? []).length;
+      const total = playerCount * sessions;
       const rate = total > 0
         ? Math.round((presences / total) * 1000) / 10  // 1 decimal
         : null;
 
-      console.log("[useTeamAttendanceRate]", { teamId, sessions, playerCount, presences, total, rate });
       return { rate, presences, sessions };
     },
   });

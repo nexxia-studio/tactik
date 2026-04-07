@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Calendar, Dumbbell, TrendingUp, Users, Wallet, ChevronRight } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { useDashboard } from "@/hooks/useDashboard";
@@ -86,6 +87,11 @@ function StatCard({
 
 function SquadAvailabilityChart({ teamId }: { teamId: string | undefined }) {
   const { data, isLoading } = useSquadAvailability(teamId);
+  const [animKey, setAnimKey] = useState(0);
+
+  useEffect(() => {
+    setAnimKey((prev) => prev + 1);
+  }, []);
 
   const chartData = data
     ? [
@@ -112,7 +118,7 @@ function SquadAvailabilityChart({ teamId }: { teamId: string | undefined }) {
           {/* Semi-circle chart */}
           <div className="relative" style={{ height: 140 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart key={`${data.available}-${data.unavailable}`}>
+              <PieChart key={animKey}>
                 <Pie
                   data={chartData}
                   cx="50%"

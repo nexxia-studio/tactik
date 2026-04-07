@@ -170,6 +170,7 @@ export default function Composition() {
   // Load lineup into state once per match selection, then open the save gate.
   // We guard with initialLoadDoneRef so that subsequent re-fetches triggered by
   // invalidateQueries after an upsert do NOT overwrite in-progress user changes.
+  // Formation fallback order: DB lineup → localStorage cache → default
   useEffect(() => {
     if (!selectedMatchId || !lineupLoaded) return;
     if (initialLoadDoneRef.current === selectedMatchId) return;
@@ -178,16 +179,21 @@ export default function Composition() {
       setSelectedFormation(lineupData.formation);
       setAssignedIds(lineupData.players);
       setSubstituteIds(lineupData.substitute_ids);
+    } else {
+      // No lineup in DB yet — restore formation from localStorage if available
+      const cached = localStorage.getItem(`tactik_formation_${selectedMatchId}`);
+      if (cached && FORMATIONS[cached]) setSelectedFormation(cached);
     }
     // Open save gate after state is committed — React 18 batches the above
     setReadyMatchId(selectedMatchId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lineupLoaded, lineupData?.id, selectedMatchId]);
 
-  // Auto-save (1s debounce) — fires only on actual user changes, not on gate open.
-  // readyMatchId is intentionally NOT in the deps array: including it caused the
-  // effect to fire immediately when the gate opened (setReadyMatchId called by the
-  // load effect), which saved the default formation to DB when no lineup existed yet.
+  // Auto-save (1s debounce) — only for player assignment changes.
+  // Formation changes are saved immediately via handleFormationChange (below),
+  // so selectedFormation is intentionally NOT in the deps array here.
+  // readyMatchId is also intentionally excluded — including it caused phantom
+  // saves of the default formation when the gate opened with no lineup in DB.
   // The guard is still evaluated from the closure on each run.
   // dirtyRef tracks the latest pending payload so the unmount flush can send it
   // if navigation cancels the timer before it fires.
@@ -210,7 +216,7 @@ export default function Composition() {
     }, 1000);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignedIds, substituteIds, selectedFormation]);
+  }, [assignedIds, substituteIds]);
 
   // Flush any unsaved changes immediately on unmount (e.g. user navigates away
   // before the 1s debounce fires — without this the save would be silently lost)
@@ -345,14 +351,29 @@ export default function Composition() {
   }, [isReadonly]);
 
   const handleFormationChange = (key: string) => {
-    if (isReadonly) return;
-    setSelectedFormation(key);
+    if (isReadonly || !selectedMatchId) return;
     const newSize = FORMATIONS[key].positions.length;
-    setAssignedIds((prev) => {
-      const next = [...prev];
-      while (next.length < newSize) next.push(null);
-      return next.slice(0, newSize);
-    });
+    // Compute truncated/padded assignedIds synchronously so immediate upsert has correct data
+    const newAssignedIds = [...assignedIds];
+    while (newAssignedIds.length < newSize) newAssignedIds.push(null);
+    const truncatedIds = newAssignedIds.slice(0, newSize);
+
+    setSelectedFormation(key);
+    setAssignedIds(truncatedIds);
+
+    // Persist formation immediately — no debounce — so navigation within 1s never loses it.
+    // Also cache in localStorage as a secondary fallback for the load effect.
+    localStorage.setItem(`tactik_formation_${selectedMatchId}`, key);
+    if (teamId && readyMatchId === selectedMatchId) {
+      dirtyRef.current = null; // discard stale pending save; this one is definitive
+      upsertLineup.mutate({
+        team_id: teamId,
+        match_id: selectedMatchId,
+        formation: key,
+        players: truncatedIds,
+        substitute_ids: substituteIds,
+      });
+    }
   };
 
   return (

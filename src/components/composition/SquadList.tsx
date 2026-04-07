@@ -11,6 +11,8 @@ interface Props {
   onRemovePlayer: (playerId: string) => void;
   onToggleSubstitute: (playerId: string) => void;
   onChangeStatus: (playerId: string, status: PlayerStatus) => void;
+  onOverrideStatus?: (playerId: string, status: PlayerStatus) => void;
+  dbUnavailabilities?: { player_id: string; end_date: string }[];
   maxSubstitutes: number;
   positionLabels: string[];
   isFriendly?: boolean;
@@ -39,6 +41,8 @@ function PlayerRow({
   isUnavailable,
   onClick,
   onChangeStatus,
+  onOverrideStatus,
+  dbEndDate,
   dragType,
 }: {
   player: FUTPlayer;
@@ -48,6 +52,8 @@ function PlayerRow({
   isUnavailable: boolean;
   onClick: () => void;
   onChangeStatus: (status: PlayerStatus) => void;
+  onOverrideStatus?: (status: PlayerStatus) => void;
+  dbEndDate?: string;
   dragType?: "bench-player" | "unselected-player";
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
@@ -178,8 +184,22 @@ function PlayerRow({
             <button
               key={opt.value}
               onClick={() => {
-                onChangeStatus(opt.value);
-                setPanelOpen(false);
+                if (dbEndDate && onOverrideStatus) {
+                  // Player has an active DB unavailability — require confirmation
+                  const dateStr = new Date(dbEndDate + "T00:00:00").toLocaleDateString("fr-BE", {
+                    day: "numeric", month: "long",
+                  });
+                  const confirmed = window.confirm(
+                    `⚠️ ${player.firstName} ${player.lastName} est déclaré blessé jusqu'au ${dateStr}.\n\nConfirmer le changement de statut ?`
+                  );
+                  if (confirmed) {
+                    onOverrideStatus(opt.value);
+                    setPanelOpen(false);
+                  }
+                } else {
+                  onChangeStatus(opt.value);
+                  setPanelOpen(false);
+                }
               }}
               className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md font-ui text-[10px] transition-all ${
                 player.status === opt.value
@@ -205,11 +225,16 @@ export function SquadList({
   onRemovePlayer,
   onToggleSubstitute,
   onChangeStatus,
+  onOverrideStatus,
+  dbUnavailabilities = [],
   maxSubstitutes,
   positionLabels,
   isFriendly = false,
 }: Props) {
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
+
+  // player_id → end_date for players with active DB unavailabilities (not yet overridden)
+  const dbUnavailabilityMap = new Map(dbUnavailabilities.map((u) => [u.player_id, u.end_date]));
   const assignedSet = new Set(assignedIds.filter(Boolean));
   const substituteSet = new Set(substituteIds);
 
@@ -347,6 +372,8 @@ export function SquadList({
                         : () => {}
                 }
                 onChangeStatus={(status) => onChangeStatus(player.id, status)}
+                onOverrideStatus={onOverrideStatus ? (status) => onOverrideStatus(player.id, status) : undefined}
+                dbEndDate={dbUnavailabilityMap.get(player.id)}
               />
             ))}
           </div>

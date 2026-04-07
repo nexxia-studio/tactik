@@ -107,8 +107,14 @@ export default function Composition() {
   const [assignedIds, setAssignedIds] = useState<(string | null)[]>([]);
   const [substituteIds, setSubstituteIds] = useState<string[]>([]);
   const [playerStatuses, setPlayerStatuses] = useState<Record<string, PlayerStatus>>({});
+  const [overriddenDbIds, setOverriddenDbIds] = useState<Set<string>>(new Set());
   const [initialized, setInitialized] = useState(false);
   const autoSelectedRef = useRef(false);
+
+  // Reset per-match overrides when the selected match changes
+  useEffect(() => {
+    setOverriddenDbIds(new Set());
+  }, [selectedMatchId]);
 
   // Auto-select the next upcoming match on first load
   useEffect(() => {
@@ -148,9 +154,16 @@ export default function Composition() {
   const playersWithStatus = useMemo(
     () => futPlayers.map((p) => {
       const manualStatus = playerStatuses[p.id] ?? p.status;
-      return { ...p, status: (dbUnavailableIds.has(p.id) ? "injured" : manualStatus) as PlayerStatus };
+      const forceInjured = dbUnavailableIds.has(p.id) && !overriddenDbIds.has(p.id);
+      return { ...p, status: (forceInjured ? "injured" : manualStatus) as PlayerStatus };
     }),
-    [futPlayers, playerStatuses, dbUnavailableIds]
+    [futPlayers, playerStatuses, dbUnavailableIds, overriddenDbIds]
+  );
+
+  // DB unavailabilities that have NOT been overridden — passed to SquadList for confirmation dialog
+  const activeDbUnavailabilities = useMemo(
+    () => activeUnavailabilities.filter((u) => !overriddenDbIds.has(u.player_id)),
+    [activeUnavailabilities, overriddenDbIds]
   );
 
   const playerMap = useMemo(() => new Map(playersWithStatus.map((p) => [p.id, p])), [playersWithStatus]);
@@ -207,6 +220,17 @@ export default function Composition() {
         next[idx] = null;
         return next;
       });
+      setSubstituteIds((prev) => prev.filter((id) => id !== playerId));
+    }
+  }, [isReadonly]);
+
+  // Override a DB-enforced unavailability for this composition session only
+  const confirmDbOverride = useCallback((playerId: string, status: PlayerStatus) => {
+    if (isReadonly) return;
+    setOverriddenDbIds((prev) => new Set([...prev, playerId]));
+    setPlayerStatuses((prev) => ({ ...prev, [playerId]: status }));
+    if (status !== "available") {
+      setAssignedIds((prev) => prev.map((id) => (id === playerId ? null : id)));
       setSubstituteIds((prev) => prev.filter((id) => id !== playerId));
     }
   }, [isReadonly]);
@@ -374,6 +398,8 @@ export default function Composition() {
               onRemovePlayer={removePlayer}
               onToggleSubstitute={toggleSubstitute}
               onChangeStatus={changePlayerStatus}
+              onOverrideStatus={confirmDbOverride}
+              dbUnavailabilities={activeDbUnavailabilities}
               maxSubstitutes={MAX_SUBSTITUTES}
               positionLabels={formation.positions.map((p) => p.label)}
               isFriendly={isFriendly}

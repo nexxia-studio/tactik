@@ -177,6 +177,7 @@ export function useTeamAttendanceRate(teamId: string | undefined, days = 30) {
         ? Math.round((presences / total) * 1000) / 10  // 1 decimal
         : null;
 
+      console.log("[useTeamAttendanceRate]", { teamId, sessions, playerCount, presences, total, rate });
       return { rate, presences, sessions };
     },
   });

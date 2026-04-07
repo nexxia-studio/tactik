@@ -86,6 +86,7 @@ export function AttendanceBarChart({ data, loading, compact, limit }: Props) {
     <div style={{ height: chartHeight }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
+          key={displayedKey}
           data={animatedData}
           barGap={4}
           barCategoryGap={compact ? "30%" : "25%"}

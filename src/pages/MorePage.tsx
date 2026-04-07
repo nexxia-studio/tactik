@@ -9,7 +9,11 @@ import {
   MessageSquare,
   Users,
   ChevronRight,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useTheme } from "@/hooks/useTheme";
 
 const sections = [
   { label: "Joueurs",        path: "/joueurs",        icon: Users,         desc: "Effectif & fiches joueurs" },
@@ -23,6 +27,8 @@ const sections = [
 ];
 
 export default function MorePage() {
+  const { theme, toggle } = useTheme();
+
   return (
     <div className="space-y-6">
       <div>
@@ -53,6 +59,23 @@ export default function MorePage() {
             <ChevronRight className="h-4 w-4 text-t-muted shrink-0" />
           </Link>
         ))}
+      </div>
+      {/* Appearance toggle — mobile only */}
+      <div className="lg:hidden">
+        <p className="text-label mb-2 px-1">Apparence</p>
+        <div className="bg-bg-surface-1 border border-b-subtle rounded-xl px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {theme === "dark" ? (
+              <Moon className="h-5 w-5 text-t-secondary" />
+            ) : (
+              <Sun className="h-5 w-5 text-t-secondary" />
+            )}
+            <span className="font-ui text-[14px] text-t-primary">
+              {theme === "dark" ? "Mode sombre" : "Mode clair"}
+            </span>
+          </div>
+          <Switch checked={theme === "light"} onCheckedChange={toggle} />
+        </div>
       </div>
     </div>
   );

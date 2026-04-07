@@ -173,6 +173,31 @@
 }
 
 /* ──────────────────────────────────────
+   DARK MODE — MOBILE READABILITY BOOST
+   Applies only below lg breakpoint (< 1024px) in dark mode.
+   Increases surface brightness, text contrast, and border visibility
+   without altering the desktop or light mode experience.
+   ────────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  :root:not([data-theme="light"]) {
+    /* Surfaces — slightly lighter to help element delimitation */
+    --bg-surface-1: #161C20;
+    --bg-surface-2: #1E252B;
+    --bg-surface-3: #242C33;
+
+    /* Text — boosted toward 4.5:1 contrast on surface-1 */
+    --text-secondary: #8BA898;
+    --text-muted:     #556B60;
+
+    /* Borders — more visible card edges on mobile */
+    --border-subtle:  rgba(255, 255, 255, 0.09);
+    --border-default: rgba(255, 255, 255, 0.14);
+    --border-strong:  rgba(255, 255, 255, 0.22);
+  }
+}
+
+/* ──────────────────────────────────────
    TRANSITIONS
    ────────────────────────────────────── */
 

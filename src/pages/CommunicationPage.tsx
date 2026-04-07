@@ -266,6 +266,7 @@ export default function CommunicationPage() {
 
         {/* Step 1b — FUT Composition link */}
         <FUTCompositionLink
+          teamId={teamId}
           matchId={matchId}
           selections={selections}
           onImportComposition={handleImportComposition}

@@ -17,25 +17,22 @@ export function FUTPlayerCard({ player, positionLabel, compact }: Props) {
 
   if (compact) {
     return (
-      <div className="flex flex-col items-center gap-0.5 group cursor-pointer">
-        {/* Card */}
-        <div className="relative w-[52px] h-[68px] sm:w-[60px] sm:h-[78px] bg-bg-surface-2 border border-b-default rounded-lg overflow-hidden flex flex-col items-center justify-center transition-all group-hover:border-primary group-hover:glow-primary">
-          {/* Rating */}
-          <span className={`font-display text-[16px] sm:text-[18px] leading-none ${ratingColor}`}>
-            {player.rating}
-          </span>
-          {/* Position */}
-          <span className="font-ui text-[8px] sm:text-[9px] text-t-muted uppercase tracking-wider mt-0.5">
-            {positionLabel}
-          </span>
-          {/* Jersey */}
-          <span className="font-ui text-[10px] sm:text-[11px] text-t-secondary mt-0.5">
-            #{player.jerseyNumber}
-          </span>
-        </div>
-        {/* Name below card */}
-        <span className="font-ui text-[9px] sm:text-[10px] text-t-secondary uppercase tracking-wider max-w-[60px] sm:max-w-[70px] truncate text-center">
-          {player.lastName}
+      <div className="w-[56px] sm:w-[62px] h-[76px] sm:h-[84px] bg-bg-surface-2 border border-b-default rounded-lg overflow-hidden flex flex-col items-center justify-between px-0.5 pt-1.5 pb-1 transition-all hover:border-primary cursor-pointer">
+        {/* Rating */}
+        <span className={`font-display text-[16px] sm:text-[18px] leading-none ${ratingColor}`}>
+          {player.rating}
+        </span>
+        {/* Position */}
+        <span className="font-ui text-[8px] sm:text-[9px] text-t-muted uppercase tracking-wider leading-none">
+          {positionLabel}
+        </span>
+        {/* Jersey */}
+        <span className="font-ui text-[9px] sm:text-[10px] text-t-secondary leading-none">
+          #{player.jerseyNumber}
+        </span>
+        {/* Name — inside card, bottom */}
+        <span className="font-ui text-[8px] sm:text-[9px] text-white uppercase tracking-wide leading-none w-full text-center truncate px-0.5">
+          {player.lastName.slice(0, 8)}
         </span>
       </div>
     );

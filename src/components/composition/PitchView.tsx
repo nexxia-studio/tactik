@@ -192,7 +192,7 @@ export function PitchView({ formation, players, onSwapSlots, onDropBenchPlayer, 
                 <div
                   onClick={readonly ? undefined : (e) => handleSlotClick(e, i)}
                   className={[
-                    "w-[52px] h-[68px] sm:w-[60px] sm:h-[78px] rounded-lg border-2 border-dashed flex items-center justify-center transition-all duration-150",
+                    "w-[56px] h-[76px] sm:w-[62px] sm:h-[84px] rounded-lg border-2 border-dashed flex items-center justify-center transition-all duration-150",
                     isValidTarget
                       ? "border-[var(--color-warning)] bg-[rgba(255,214,10,0.12)] cursor-pointer scale-105"
                       : isOver

@@ -6,9 +6,10 @@ import { PitchView, computeChemScore } from "@/components/composition/PitchView"
 import { SquadList } from "@/components/composition/SquadList";
 import { ChemistryScoreRing } from "@/components/composition/ChemistryScoreRing";
 import { MatchSelector, type CompositionMatch } from "@/components/composition/MatchSelector";
-import { Send, Save } from "lucide-react";
+import { Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useActiveTeam } from "@/contexts/TeamContext";
 import { usePlayers } from "@/hooks/usePlayers";
 import { useMatchesByOrg } from "@/hooks/useMatches";
@@ -350,8 +351,9 @@ export default function Composition() {
     setSubstituteIds((prev) => prev.filter((id) => id !== playerId));
   }, [isReadonly]);
 
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+
   const handleFormationChange = async (key: string) => {
-    console.log("[handleFormationChange] called with:", key, "isReadonly:", isReadonly, "selectedMatchId:", selectedMatchId, "teamId:", teamId);
     if (isReadonly || !selectedMatchId || !teamId) return;
     const newSize = FORMATIONS[key].positions.length;
     const newAssignedIds = [...assignedIds];
@@ -362,15 +364,28 @@ export default function Composition() {
     setAssignedIds(truncatedIds);
     localStorage.setItem(`tactik_formation_${selectedMatchId}`, key);
 
-    // Direct Supabase call — no hook, no debounce, no gate condition
-    const { data, error } = await (supabase as any)
+    await (supabase as any)
       .from("lineups")
       .upsert(
         { team_id: teamId, match_id: selectedMatchId, formation: key, players: truncatedIds, substitute_ids: substituteIds, updated_at: new Date().toISOString() },
         { onConflict: "team_id,match_id" }
       )
       .select();
-    console.log("[Formation Save] result:", JSON.stringify({ key, teamId, selectedMatchId, error, data }));
+  };
+
+  const handleClearComposition = async () => {
+    if (!teamId || !selectedMatchId) return;
+    const emptyIds = Array(formation.positions.length).fill(null);
+    setAssignedIds(emptyIds);
+    setSubstituteIds([]);
+    dirtyRef.current = null;
+    await (supabase as any)
+      .from("lineups")
+      .upsert(
+        { team_id: teamId, match_id: selectedMatchId, formation: selectedFormation, players: emptyIds, substitute_ids: [], updated_at: new Date().toISOString() },
+        { onConflict: "team_id,match_id" }
+      );
+    toast.success("Composition vidée");
   };
 
   return (
@@ -445,17 +460,11 @@ export default function Composition() {
                   <div>
                     <button
                       disabled={!selectedMatchId || isReadonly}
-                      onClick={() => {
-                        if (!teamId || !selectedMatchId) return;
-                        upsertLineup.mutate(
-                          { team_id: teamId, match_id: selectedMatchId, formation: selectedFormation, players: assignedIds, substitute_ids: substituteIds },
-                          { onSuccess: () => toast.success("Composition sauvegardée ✓") }
-                        );
-                      }}
-                      className="w-full py-3 rounded-xl font-ui text-[var(--text-body)] uppercase tracking-wider bg-bg-surface-2 text-t-primary border border-b-subtle hover:bg-bg-surface-3 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      onClick={() => setClearDialogOpen(true)}
+                      className="w-full py-3 rounded-xl font-ui text-[var(--text-body)] uppercase tracking-wider bg-bg-surface-2 text-[var(--color-danger)] border border-b-subtle hover:bg-[rgba(255,59,48,0.08)] hover:border-[rgba(255,59,48,0.3)] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      <Save className="w-4 h-4" />
-                      Sauvegarder
+                      <Trash2 className="w-4 h-4" />
+                      Vider
                     </button>
                   </div>
                 </TooltipTrigger>
@@ -466,6 +475,26 @@ export default function Composition() {
                 )}
               </Tooltip>
             </TooltipProvider>
+
+            <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+              <AlertDialogContent className="bg-bg-surface-1 border-b-subtle">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="font-display text-t-primary">Vider la composition</AlertDialogTitle>
+                  <AlertDialogDescription className="font-ui text-t-secondary">
+                    Tous les joueurs seront retirés du terrain et des remplaçants. Cette action est immédiate.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="font-ui">Annuler</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleClearComposition}
+                    className="font-ui bg-[var(--color-danger)] text-white hover:bg-[var(--color-danger)]/90"
+                  >
+                    Vider
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
 

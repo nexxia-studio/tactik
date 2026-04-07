@@ -351,6 +351,7 @@ export default function Composition() {
   }, [isReadonly]);
 
   const handleFormationChange = async (key: string) => {
+    console.log("[handleFormationChange] called with:", key, "isReadonly:", isReadonly, "selectedMatchId:", selectedMatchId, "teamId:", teamId);
     if (isReadonly || !selectedMatchId || !teamId) return;
     const newSize = FORMATIONS[key].positions.length;
     const newAssignedIds = [...assignedIds];

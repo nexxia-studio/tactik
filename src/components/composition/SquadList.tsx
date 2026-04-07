@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { type FUTPlayer, type PlayerStatus } from "./mockPlayers";
+import { getPositionColor } from "@/lib/positionUtils";
 import { ShieldAlert, Cross, Ban, UserPlus, UserMinus, ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -156,7 +157,11 @@ function PlayerRow({
             {player.firstName} {player.lastName}
           </p>
           <div className="flex items-center gap-1.5">
-            <span className="font-ui text-[10px] text-t-muted">{player.position}</span>
+            {(() => { const pc = getPositionColor(player.position); return (
+              <span className={`font-ui text-[9px] px-1 py-0.5 rounded border ${pc.bg} ${pc.text} ${pc.border}`}>
+                {player.position}
+              </span>
+            ); })()}
             {slotLabel && (
               <span className="font-ui text-[9px] text-primary uppercase">→ {slotLabel}</span>
             )}

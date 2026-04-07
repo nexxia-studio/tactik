@@ -7,13 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-const positionConfig: Record<string, { bg: string; text: string; short: string }> = {
-  Gardien:   { bg: "bg-[rgba(79,142,255,0.15)]",  text: "text-[var(--color-info)]",    short: "GK"  },
-  Défenseur: { bg: "bg-[rgba(255,59,48,0.15)]",   text: "text-[var(--color-danger)]",  short: "DEF" },
-  Milieu:    { bg: "bg-[rgba(255,214,10,0.15)]",  text: "text-[var(--color-warning)]", short: "MIL" },
-  Attaquant: { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]", short: "ATT" },
-};
+import { getPositionColor } from "@/lib/positionUtils";
 
 interface PlayerCardProps {
   player: Player;
@@ -23,7 +17,7 @@ interface PlayerCardProps {
 }
 
 export function PlayerCard({ player, onEdit, onDelete, onView }: PlayerCardProps) {
-  const pos = positionConfig[player.position_preferred ?? ""] || { bg: "bg-bg-surface-2", text: "text-t-secondary", short: "?" };
+  const pos = getPositionColor(player.position_preferred ?? "");
 
   return (
     <div
@@ -42,7 +36,7 @@ export function PlayerCard({ player, onEdit, onDelete, onView }: PlayerCardProps
           <User className="h-4 w-4 text-t-muted" />
         )}
         {/* Position badge */}
-        <div className={`absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full ${pos.bg} flex items-center justify-center border-2 border-bg-surface-1`}>
+        <div className={`absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full ${pos.bg} border ${pos.border} flex items-center justify-center border-2 border-bg-surface-1`}>
           <span className={`text-[7px] font-ui font-bold ${pos.text}`}>{pos.short}</span>
         </div>
       </div>
@@ -57,7 +51,7 @@ export function PlayerCard({ player, onEdit, onDelete, onView }: PlayerCardProps
         </p>
         <div className="flex items-center gap-2 mt-0.5">
           {player.position_preferred && (
-            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-ui font-semibold uppercase tracking-wider ${pos.bg} ${pos.text}`}>
+            <span className={`inline-flex px-2 py-0.5 rounded border text-[10px] font-ui font-semibold uppercase tracking-wider ${pos.bg} ${pos.text} ${pos.border}`}>
               {player.position_preferred}
             </span>
           )}

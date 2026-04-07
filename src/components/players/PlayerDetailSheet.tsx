@@ -14,25 +14,7 @@ import {
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { UnavailabilityDialog } from "./UnavailabilityDialog";
 import { useToast } from "@/hooks/use-toast";
-
-const positionConfig: Record<string, { bg: string; text: string }> = {
-  // Legacy simple values
-  "Gardien":          { bg: "bg-[rgba(79,142,255,0.15)]",  text: "text-[var(--color-info)]"    },
-  "Défenseur":        { bg: "bg-[rgba(255,59,48,0.15)]",   text: "text-[var(--color-danger)]"  },
-  "Milieu":           { bg: "bg-[rgba(255,214,10,0.15)]",  text: "text-[var(--color-warning)]" },
-  "Attaquant":        { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]" },
-  // Detailed positions
-  "Défenseur central":  { bg: "bg-[rgba(255,59,48,0.15)]",   text: "text-[var(--color-danger)]"  },
-  "Arrière droit":      { bg: "bg-[rgba(255,59,48,0.15)]",   text: "text-[var(--color-danger)]"  },
-  "Arrière gauche":     { bg: "bg-[rgba(255,59,48,0.15)]",   text: "text-[var(--color-danger)]"  },
-  "Milieu défensif":    { bg: "bg-[rgba(255,214,10,0.15)]",  text: "text-[var(--color-warning)]" },
-  "Milieu central":     { bg: "bg-[rgba(255,214,10,0.15)]",  text: "text-[var(--color-warning)]" },
-  "Milieu offensif":    { bg: "bg-[rgba(255,214,10,0.15)]",  text: "text-[var(--color-warning)]" },
-  "Ailier droit":       { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]" },
-  "Ailier gauche":      { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]" },
-  "Attaquant centre":   { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]" },
-  "Avant-centre":       { bg: "bg-[rgba(22,255,110,0.15)]",  text: "text-[var(--color-success)]" },
-};
+import { getPositionColor } from "@/lib/positionUtils";
 
 const FOOT_LABELS: Record<string, string> = {
   right: "Pied droit",
@@ -74,7 +56,7 @@ export function PlayerDetailSheet({ player, open, onOpenChange, onEdit }: Player
 
   if (!player) return null;
 
-  const pos = positionConfig[player.position_preferred ?? ""] || { bg: "bg-bg-surface-2", text: "text-t-secondary" };
+  const pos = getPositionColor(player.position_preferred ?? "");
   const joinDate = new Date(player.created_at).toLocaleDateString("fr-BE", {
     day: "numeric", month: "long", year: "numeric",
   });
@@ -146,7 +128,7 @@ export function PlayerDetailSheet({ player, open, onOpenChange, onEdit }: Player
               )}
               <div className="flex items-center gap-2 mt-3">
                 {player.position_preferred && (
-                  <span className={`inline-flex px-3 py-1 rounded-full text-[11px] font-ui font-semibold uppercase tracking-wider ${pos.bg} ${pos.text}`}>
+                  <span className={`inline-flex px-3 py-1 rounded-full border text-[11px] font-ui font-semibold uppercase tracking-wider ${pos.bg} ${pos.text} ${pos.border}`}>
                     {player.position_preferred}
                   </span>
                 )}
@@ -203,11 +185,11 @@ export function PlayerDetailSheet({ player, open, onOpenChange, onEdit }: Player
                     {[player.position_alternative_1, player.position_alternative_2]
                       .filter(Boolean)
                       .map((p) => {
-                        const c = positionConfig[p!] ?? { bg: "bg-bg-surface-1", text: "text-t-secondary" };
+                        const c = getPositionColor(p!);
                         return (
                           <span
                             key={p}
-                            className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-ui font-medium ${c.bg} ${c.text}`}
+                            className={`inline-flex px-2.5 py-0.5 rounded-full border text-[10px] font-ui font-medium ${c.bg} ${c.text} ${c.border}`}
                           >
                             {p}
                           </span>

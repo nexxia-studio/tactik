@@ -175,6 +175,7 @@ export function useUpsertAttendance() {
     onSuccess: (_, { training_id }) => {
       qc.invalidateQueries({ queryKey: ["training_attendance", training_id] });
       qc.invalidateQueries({ queryKey: ["trainings_attendance_counts"] });
+      qc.invalidateQueries({ queryKey: ["player_attendance_stats"] });
     },
   });
 }
@@ -193,6 +194,7 @@ export function useDeleteAttendance() {
     onSuccess: (_, { training_id }) => {
       qc.invalidateQueries({ queryKey: ["training_attendance", training_id] });
       qc.invalidateQueries({ queryKey: ["trainings_attendance_counts"] });
+      qc.invalidateQueries({ queryKey: ["player_attendance_stats"] });
     },
   });
 }

@@ -110,13 +110,15 @@ export function useDashboard(
           .eq("is_paid", false)
           .gte("created_at", startOfMonth),
 
-        // Get completed trainings in last 30 days (IDs only)
+        // Get past trainings in last 30 days (IDs only) — exclude cancelled only,
+        // "scheduled" is the default status and is never auto-updated to "completed"
         supabase
           .from("trainings")
           .select("id")
           .eq("team_id", teamId!)
-          .eq("status", "completed")
-          .gte("scheduled_at", thirtyDaysAgo),
+          .neq("status", "cancelled")
+          .gte("scheduled_at", thirtyDaysAgo)
+          .lte("scheduled_at", now),
       ]);
 
       for (const res of [nextMatchRes, nextTrainingRes, lastMatchesRes, treasuryRes, unpaidFinesRes, recentTrainingsRes]) {

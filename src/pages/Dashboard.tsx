@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Calendar, Dumbbell, TrendingUp, Users, Wallet, ChevronRight } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { useDashboard } from "@/hooks/useDashboard";
@@ -87,10 +87,23 @@ function StatCard({
 
 function SquadAvailabilityChart({ teamId }: { teamId: string | undefined }) {
   const { data, isLoading } = useSquadAvailability(teamId);
-  const [animKey, setAnimKey] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    setAnimKey((prev) => prev + 1);
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
   const chartData = data
@@ -116,9 +129,9 @@ function SquadAvailabilityChart({ teamId }: { teamId: string | undefined }) {
       ) : (
         <>
           {/* Semi-circle chart */}
-          <div className="relative" style={{ height: 140 }}>
+          <div ref={containerRef} className="relative" style={{ height: 140, opacity: isVisible ? 1 : 0 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart key={animKey}>
+              <PieChart key={isVisible ? "chart" : "hidden"}>
                 <Pie
                   data={chartData}
                   cx="50%"

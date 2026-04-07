@@ -1,14 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { type FUTPlayer, type PlayerStatus } from "./mockPlayers";
 import { ShieldAlert, Cross, Ban, UserPlus, UserMinus, ArrowRightLeft } from "lucide-react";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-  ContextMenuSeparator,
-  ContextMenuLabel,
-} from "@/components/ui/context-menu";
 import { toast } from "sonner";
 
 interface Props {
@@ -25,16 +17,16 @@ interface Props {
 }
 
 const STATUS_INFO = {
-  injured: { label: "Blessé", icon: Cross, colorClass: "text-[var(--color-danger)]" },
-  suspended: { label: "Suspendu", icon: ShieldAlert, colorClass: "text-[var(--color-warning)]" },
-  unavailable: { label: "Indisponible", icon: Ban, colorClass: "text-t-muted" },
+  injured:     { label: "Blessé",       icon: Cross,       colorClass: "text-[var(--color-danger)]"  },
+  suspended:   { label: "Suspendu",     icon: ShieldAlert, colorClass: "text-[var(--color-warning)]" },
+  unavailable: { label: "Indisponible", icon: Ban,         colorClass: "text-t-muted"                },
 };
 
-const STATUS_OPTIONS: { value: PlayerStatus; label: string }[] = [
-  { value: "available", label: "Actif" },
-  { value: "suspended", label: "Suspendu" },
-  { value: "injured", label: "Blessé" },
-  { value: "unavailable", label: "Indisponible" },
+const STATUS_PANEL_OPTIONS: { value: PlayerStatus; label: string; emoji: string }[] = [
+  { value: "available",   label: "Actif",        emoji: "✅" },
+  { value: "injured",     label: "Blessé",       emoji: "🤕" },
+  { value: "suspended",   label: "Suspendu",     emoji: "🟡" },
+  { value: "unavailable", label: "Indisponible", emoji: "❌" },
 ];
 
 const POSITION_ORDER = ["GK", "RB", "RWB", "CB", "LB", "LWB", "CDM", "CM", "RM", "LM", "CAM", "RAM", "LAM", "RW", "LW", "CF", "SS", "ST"];
@@ -58,106 +50,150 @@ function PlayerRow({
   onChangeStatus: (status: PlayerStatus) => void;
   dragType?: "bench-player" | "unselected-player";
 }) {
+  const [panelOpen, setPanelOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const statusMeta = player.status !== "available" ? STATUS_INFO[player.status] : null;
   const isDraggable = !!dragType && !isUnavailable;
+
+  // Close on outside mousedown
+  useEffect(() => {
+    if (!panelOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setPanelOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [panelOpen]);
+
+  const openPanel = useCallback(() => setPanelOpen(true), []);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    openPanel();
+  };
+
+  const handleTouchStart = () => {
+    longPressTimer.current = setTimeout(openPanel, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
 
   const handleDragStart = (e: React.DragEvent) => {
     if (!dragType) return;
     e.dataTransfer.setData("player-id", player.id);
     e.dataTransfer.setData("drag-type", dragType);
-    // Also set bench-player-id for PitchView compatibility
     if (dragType === "bench-player" || dragType === "unselected-player") {
       e.dataTransfer.setData("bench-player-id", player.id);
     }
     e.dataTransfer.effectAllowed = "move";
   };
 
-  const rowContent = (
-    <button
-      onClick={onClick}
-      disabled={isUnavailable}
-      draggable={isDraggable}
-      onDragStart={handleDragStart}
-      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-left select-none ${
-        isUnavailable
-          ? "bg-bg-surface-2/50 opacity-50 cursor-not-allowed"
-          : isAssigned
-            ? "bg-primary-dim border border-primary-border hover:bg-primary-dim/70 cursor-pointer"
-            : isSubstitute
-              ? "bg-info/10 border border-info/30 hover:bg-info/20 cursor-pointer"
-              : "bg-bg-surface-2 border border-b-subtle hover:bg-bg-surface-3 cursor-pointer"
-      } ${isDraggable ? "cursor-grab active:cursor-grabbing" : ""}`}
-    >
-      <span className="font-display text-[13px] text-t-muted w-6 text-center shrink-0">
-        #{player.jerseyNumber}
-      </span>
-
-      <div className="flex-1 min-w-0">
-        <p className="font-ui text-[12px] text-t-primary truncate">
-          {player.firstName} {player.lastName}
-        </p>
-        <div className="flex items-center gap-1.5">
-          <span className="font-ui text-[10px] text-t-muted">{player.position}</span>
-          {slotLabel && (
-            <span className="font-ui text-[9px] text-primary uppercase">→ {slotLabel}</span>
-          )}
-          {statusMeta && (
-            <span className={`font-ui text-[9px] flex items-center gap-0.5 ${statusMeta.colorClass}`}>
-              <statusMeta.icon className="h-2.5 w-2.5" />
-              {statusMeta.label}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <span
-        className={`font-display text-[13px] shrink-0 ${
-          player.rating >= 80
-            ? "text-[var(--color-success)]"
-            : player.rating >= 70
-              ? "text-[var(--color-warning)]"
-              : "text-t-primary"
-        }`}
-      >
-        {player.rating}
-      </span>
-
-      {!isUnavailable && (
-        <span className="shrink-0">
-          {isAssigned ? (
-            <UserMinus className="h-3.5 w-3.5 text-[var(--color-danger)]" />
-          ) : isSubstitute ? (
-            <ArrowRightLeft className="h-3.5 w-3.5 text-info" />
-          ) : (
-            <UserPlus className="h-3.5 w-3.5 text-primary" />
-          )}
-        </span>
-      )}
-    </button>
-  );
-
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{rowContent}</ContextMenuTrigger>
-      <ContextMenuContent className="bg-bg-surface-1 border-b-subtle min-w-[160px]">
-        <ContextMenuLabel className="font-display text-[11px] text-t-muted">
-          Statut de {player.firstName}
-        </ContextMenuLabel>
-        <ContextMenuSeparator className="bg-b-subtle" />
-        {STATUS_OPTIONS.map((opt) => (
-          <ContextMenuItem
-            key={opt.value}
-            onSelect={() => onChangeStatus(opt.value)}
-            className={`font-ui text-[12px] cursor-pointer ${
-              player.status === opt.value ? "text-primary font-semibold" : "text-t-primary"
-            }`}
-          >
-            {player.status === opt.value && <span className="mr-1.5">✓</span>}
-            {opt.label}
-          </ContextMenuItem>
-        ))}
-      </ContextMenuContent>
-    </ContextMenu>
+    <div
+      className="relative"
+      onContextMenu={handleContextMenu}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchEnd}
+    >
+      <button
+        onClick={onClick}
+        disabled={isUnavailable}
+        draggable={isDraggable}
+        onDragStart={handleDragStart}
+        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-left select-none ${
+          isUnavailable
+            ? "bg-bg-surface-2/50 opacity-50 cursor-not-allowed"
+            : isAssigned
+              ? "bg-primary-dim border border-primary-border hover:bg-primary-dim/70 cursor-pointer"
+              : isSubstitute
+                ? "bg-info/10 border border-info/30 hover:bg-info/20 cursor-pointer"
+                : "bg-bg-surface-2 border border-b-subtle hover:bg-bg-surface-3 cursor-pointer"
+        } ${isDraggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      >
+        <span className="font-display text-[13px] text-t-muted w-6 text-center shrink-0">
+          #{player.jerseyNumber}
+        </span>
+
+        <div className="flex-1 min-w-0">
+          <p className="font-ui text-[12px] text-t-primary truncate">
+            {player.firstName} {player.lastName}
+          </p>
+          <div className="flex items-center gap-1.5">
+            <span className="font-ui text-[10px] text-t-muted">{player.position}</span>
+            {slotLabel && (
+              <span className="font-ui text-[9px] text-primary uppercase">→ {slotLabel}</span>
+            )}
+            {statusMeta && (
+              <span className={`font-ui text-[9px] flex items-center gap-0.5 ${statusMeta.colorClass}`}>
+                <statusMeta.icon className="h-2.5 w-2.5" />
+                {statusMeta.label}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <span
+          className={`font-display text-[13px] shrink-0 ${
+            player.rating >= 80
+              ? "text-[var(--color-success)]"
+              : player.rating >= 70
+                ? "text-[var(--color-warning)]"
+                : "text-t-primary"
+          }`}
+        >
+          {player.rating}
+        </span>
+
+        {!isUnavailable && (
+          <span className="shrink-0">
+            {isAssigned ? (
+              <UserMinus className="h-3.5 w-3.5 text-[var(--color-danger)]" />
+            ) : isSubstitute ? (
+              <ArrowRightLeft className="h-3.5 w-3.5 text-info" />
+            ) : (
+              <UserPlus className="h-3.5 w-3.5 text-primary" />
+            )}
+          </span>
+        )}
+      </button>
+
+      {/* Inline status panel — replaces ContextMenu */}
+      {panelOpen && (
+        <div
+          ref={panelRef}
+          className="absolute inset-x-0 top-0 z-30 flex gap-1 bg-bg-surface-1 border border-b-subtle rounded-lg p-1.5 shadow-xl"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {STATUS_PANEL_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => {
+                onChangeStatus(opt.value);
+                setPanelOpen(false);
+              }}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md font-ui text-[10px] transition-all ${
+                player.status === opt.value
+                  ? "bg-primary text-primary-text"
+                  : "bg-bg-surface-2 text-t-secondary hover:bg-bg-surface-3 hover:text-t-primary"
+              }`}
+            >
+              <span className="text-[13px] leading-none">{opt.emoji}</span>
+              <span className="leading-none">{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -209,7 +245,6 @@ export function SquadList({
   };
 
   const handleSectionDragLeave = (e: React.DragEvent) => {
-    // Only clear if leaving the section entirely
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setDragOverSection(null);
     }
@@ -225,9 +260,9 @@ export function SquadList({
 
     if (targetSection === "non-selected") {
       if (dragType === "bench-player") {
-        onToggleSubstitute(playerId); // removes from bench
+        onToggleSubstitute(playerId);
       } else if (dragType === "pitch-player") {
-        onRemovePlayer(playerId); // removes from pitch → non-selected
+        onRemovePlayer(playerId);
       }
     } else if (targetSection === "substitute") {
       if (dragType === "unselected-player" || dragType === "pitch-player") {
@@ -236,9 +271,9 @@ export function SquadList({
           return;
         }
         if (dragType === "pitch-player") {
-          onRemovePlayer(playerId); // remove from pitch first
+          onRemovePlayer(playerId);
         }
-        onToggleSubstitute(playerId); // add to bench
+        onToggleSubstitute(playerId);
       }
     }
   };
@@ -259,9 +294,7 @@ export function SquadList({
         onDragLeave={isDropZone ? handleSectionDragLeave : undefined}
         onDrop={isDropZone ? (e) => handleSectionDrop(e, mode as "substitute" | "non-selected") : undefined}
         className={`rounded-lg transition-all duration-150 ${
-          isDraggedOver
-            ? "bg-primary-dim border border-primary-border p-2 -m-2"
-            : ""
+          isDraggedOver ? "bg-primary-dim border border-primary-border p-2 -m-2" : ""
         }`}
       >
         <h4 className="font-display text-[11px] text-t-muted uppercase tracking-wider mb-1.5 px-1">
@@ -326,7 +359,7 @@ export function SquadList({
     <div className="bg-bg-surface-1 border border-b-subtle rounded-xl p-4">
       <h3 className="font-display text-[14px] text-t-primary mb-1">EFFECTIF</h3>
       <p className="font-ui text-[10px] text-t-muted mb-3">
-        Clique pour gérer · Clic droit pour changer le statut · Glisser-déposer pour réorganiser
+        Clique pour gérer · Clic droit / appui long pour changer le statut · Glisser-déposer pour réorganiser
       </p>
 
       <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">

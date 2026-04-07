@@ -177,7 +177,11 @@ export default function Composition() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lineupLoaded, lineupData?.id, selectedMatchId]);
 
-  // Auto-save (1s debounce) — only fires when readyMatchId === selectedMatchId
+  // Auto-save (1s debounce) — fires only on actual user changes, not on gate open.
+  // readyMatchId is intentionally NOT in the deps array: including it caused the
+  // effect to fire immediately when the gate opened (setReadyMatchId called by the
+  // load effect), which saved the default formation to DB when no lineup existed yet.
+  // The guard is still evaluated from the closure on each run.
   useEffect(() => {
     if (!teamId || !selectedMatchId || readyMatchId !== selectedMatchId || isReadonly) return;
     const timer = setTimeout(() => {
@@ -191,7 +195,7 @@ export default function Composition() {
     }, 1000);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignedIds, substituteIds, selectedFormation, readyMatchId]);
+  }, [assignedIds, substituteIds, selectedFormation]);
 
   const playersWithStatus = useMemo(
     () => futPlayers.map((p) => {

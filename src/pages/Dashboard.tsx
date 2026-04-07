@@ -112,7 +112,7 @@ function SquadAvailabilityChart({ teamId }: { teamId: string | undefined }) {
           {/* Semi-circle chart */}
           <div className="relative" style={{ height: 140 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              <PieChart key={`${data.available}-${data.unavailable}`}>
                 <Pie
                   data={chartData}
                   cx="50%"

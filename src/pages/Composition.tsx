@@ -113,6 +113,10 @@ export default function Composition() {
   const [readyMatchId, setReadyMatchId] = useState<string | null>(null);
   const [statusInitialized, setStatusInitialized] = useState(false);
   const autoSelectedRef = useRef(false);
+  // Tracks which matchId has already been loaded — prevents re-loading from DB
+  // after the first upsert changes lineupData.id (undefined → uuid), which would
+  // overwrite in-progress user state.
+  const initialLoadDoneRef = useRef<string | null>(null);
   const upsertLineup = useUpsertLineup();
 
   // Auto-select the next upcoming match on first load
@@ -146,6 +150,7 @@ export default function Composition() {
 
   // Reset when match changes — clear pitch/bench and disable auto-save gate
   useEffect(() => {
+    initialLoadDoneRef.current = null;
     setReadyMatchId(null);
     setOverriddenDbIds(new Set());
     setAssignedIds([]);
@@ -155,9 +160,13 @@ export default function Composition() {
   // Fetch persisted lineup for the selected match
   const { data: lineupData, isSuccess: lineupLoaded } = useLineup(teamId, selectedMatchId);
 
-  // Load lineup into state when fetch completes, then open the save gate
+  // Load lineup into state once per match selection, then open the save gate.
+  // We guard with initialLoadDoneRef so that subsequent re-fetches triggered by
+  // invalidateQueries after an upsert do NOT overwrite in-progress user changes.
   useEffect(() => {
     if (!selectedMatchId || !lineupLoaded) return;
+    if (initialLoadDoneRef.current === selectedMatchId) return;
+    initialLoadDoneRef.current = selectedMatchId;
     if (lineupData) {
       setSelectedFormation(lineupData.formation);
       setAssignedIds(lineupData.players);

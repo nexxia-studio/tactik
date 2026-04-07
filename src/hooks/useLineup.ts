@@ -18,6 +18,7 @@ export function useLineup(teamId: string | undefined, matchId: string | null) {
     queryKey: ["lineup", teamId, matchId],
     enabled: !!teamId && !!matchId,
     queryFn: async () => {
+      console.log("[useLineup] fetching", { teamId, matchId });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase as any)
         .from("lineups")
@@ -25,6 +26,7 @@ export function useLineup(teamId: string | undefined, matchId: string | null) {
         .eq("team_id", teamId!)
         .eq("match_id", matchId!)
         .maybeSingle();
+      console.log("[useLineup] result", { data, error });
       if (error) throw error;
       return data as Lineup | null;
     },
@@ -41,17 +43,21 @@ export function useUpsertLineup() {
       players: (string | null)[];
       substitute_ids: string[];
     }) => {
+      const payload = { ...input, updated_at: new Date().toISOString() };
+      console.log("[useUpsertLineup] upserting", payload);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("lineups")
-        .upsert(
-          { ...input, updated_at: new Date().toISOString() },
-          { onConflict: "team_id,match_id" }
-        );
+        .upsert(payload, { onConflict: "team_id,match_id" })
+        .select();
+      console.log("[useUpsertLineup] result", { data, error });
       if (error) throw error;
     },
     onSuccess: (_, { team_id, match_id }) => {
       qc.invalidateQueries({ queryKey: ["lineup", team_id, match_id] });
+    },
+    onError: (error) => {
+      console.error("[useUpsertLineup] mutation error", error);
     },
   });
 }

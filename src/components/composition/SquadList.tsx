@@ -2,6 +2,16 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { type FUTPlayer, type PlayerStatus } from "./mockPlayers";
 import { ShieldAlert, Cross, Ban, UserPlus, UserMinus, ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Props {
   allPlayers: FUTPlayer[];
@@ -57,6 +67,7 @@ function PlayerRow({
   dragType?: "bench-player" | "unselected-player";
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<PlayerStatus | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -185,17 +196,9 @@ function PlayerRow({
               key={opt.value}
               onClick={() => {
                 if (dbEndDate && onOverrideStatus) {
-                  // Player has an active DB unavailability — require confirmation
-                  const dateStr = new Date(dbEndDate + "T00:00:00").toLocaleDateString("fr-BE", {
-                    day: "numeric", month: "long",
-                  });
-                  const confirmed = window.confirm(
-                    `⚠️ ${player.firstName} ${player.lastName} est déclaré blessé jusqu'au ${dateStr}.\n\nConfirmer le changement de statut ?`
-                  );
-                  if (confirmed) {
-                    onOverrideStatus(opt.value);
-                    setPanelOpen(false);
-                  }
+                  // DB-unavailable player — open confirmation dialog
+                  setPendingStatus(opt.value);
+                  setPanelOpen(false);
                 } else {
                   onChangeStatus(opt.value);
                   setPanelOpen(false);
@@ -212,6 +215,47 @@ function PlayerRow({
             </button>
           ))}
         </div>
+      )}
+
+      {/* Confirmation dialog for DB-unavailable override */}
+      {dbEndDate && onOverrideStatus && (
+        <AlertDialog open={pendingStatus !== null} onOpenChange={(open) => { if (!open) setPendingStatus(null); }}>
+          <AlertDialogContent className="bg-bg-surface-1 border-b-subtle">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-display text-t-primary flex items-center gap-2">
+                <span className="text-[var(--color-warning)]">⚠️</span>
+                Joueur indisponible
+              </AlertDialogTitle>
+              <AlertDialogDescription className="font-ui text-t-secondary text-[13px]">
+                <strong className="text-t-primary">{player.firstName} {player.lastName}</strong> est déclaré blessé jusqu'au{" "}
+                <strong className="text-t-primary">
+                  {new Date(dbEndDate + "T00:00:00").toLocaleDateString("fr-BE", { day: "numeric", month: "long" })}
+                </strong>.
+                <br />
+                Confirmer quand même le changement de statut ?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                className="font-ui text-[13px] border-b-subtle bg-bg-surface-2 text-t-primary hover:bg-bg-surface-3"
+                onClick={() => setPendingStatus(null)}
+              >
+                Annuler
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="font-ui text-[13px] bg-[var(--color-danger)] text-white hover:opacity-90"
+                onClick={() => {
+                  if (pendingStatus) {
+                    onOverrideStatus(pendingStatus);
+                    setPendingStatus(null);
+                  }
+                }}
+              >
+                Confirmer quand même
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );

@@ -107,7 +107,7 @@ export function AttendanceBarChart({ data, loading, compact, limit }: Props) {
             ticks={compact ? [0, 50, 100] : [0, 25, 50, 75, 100]}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--color-primary-dim)" }} />
-          <Bar dataKey="percentage" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={500} animationEasing="ease-out">
+          <Bar dataKey="percentage" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={800} animationEasing="ease-out">
             {animatedData.map((_, i) => (
               <Cell key={i} fill={barColor(displayed[i].percentage)} fillOpacity={0.85} />
             ))}

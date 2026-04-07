@@ -22,9 +22,9 @@ export const FORMATIONS: Record<string, Formation> = {
       { label: "CB", x: 38, y: 76 },
       { label: "CB", x: 62, y: 76 },
       { label: "RB", x: 85, y: 72 },
-      { label: "CM", x: 25, y: 52 },  // triangle pointant vers l'avant :
-      { label: "CM", x: 50, y: 48 },  // CM central haut
-      { label: "CM", x: 75, y: 52 },  // CMs latéraux bas
+      { label: "CM", x: 30, y: 52 },
+      { label: "CM", x: 50, y: 40 },
+      { label: "CM", x: 70, y: 52 },
       { label: "LW", x: 18, y: 24 },
       { label: "ST", x: 50, y: 18 },
       { label: "RW", x: 82, y: 24 },

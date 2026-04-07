@@ -51,3 +51,31 @@ const MAP: Record<string, PositionColor> = {
 export function getPositionColor(position: string): PositionColor {
   return MAP[position] ?? FALLBACK;
 }
+
+const ABBR: Record<string, string> = {
+  // ── French full names → abbreviation ────────────────────────
+  "Gardien":            "GK",
+  "Défenseur":          "CB",
+  "Défenseur central":  "CB",
+  "Arrière droit":      "RB",
+  "Arrière gauche":     "LB",
+  "Milieu":             "MC",
+  "Milieu défensif":    "MDC",
+  "Milieu central":     "MC",
+  "Milieu offensif":    "MOC",
+  "Ailier droit":       "RW",
+  "Ailier gauche":      "LW",
+  "Avant-centre":       "ST",
+  "Attaquant centre":   "ST",
+  "Attaquant":          "ST",
+  // ── Short codes pass through ─────────────────────────────────
+  "GK": "GK", "CB": "CB", "RB": "RB", "LB": "LB", "RWB": "RWB", "LWB": "LWB",
+  "CDM": "MDC", "CM": "MC", "CAM": "MOC",
+  "RM": "RM", "LM": "LM", "RAM": "RAM", "LAM": "LAM",
+  "RW": "RW", "LW": "LW", "CF": "CF", "SS": "SS", "ST": "ST",
+};
+
+/** Returns a compact abbreviation for any position (French name or short code). */
+export function getPositionAbbr(position: string): string {
+  return ABBR[position] ?? position.slice(0, 3).toUpperCase();
+}

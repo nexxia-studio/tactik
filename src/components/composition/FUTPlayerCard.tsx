@@ -1,5 +1,5 @@
 import type { FUTPlayer } from "./mockPlayers";
-import { getPositionColor } from "@/lib/positionUtils";
+import { getPositionColor, getPositionAbbr } from "@/lib/positionUtils";
 
 interface Props {
   player: FUTPlayer;
@@ -26,7 +26,7 @@ export function FUTPlayerCard({ player, positionLabel, compact }: Props) {
         </span>
         {/* Position */}
         <span className={`font-ui text-[8px] sm:text-[9px] uppercase tracking-wider leading-none ${pc.text}`}>
-          {positionLabel}
+          {getPositionAbbr(positionLabel)}
         </span>
         {/* Jersey */}
         <span className="font-ui text-[9px] sm:text-[10px] text-t-secondary leading-none">
@@ -48,7 +48,7 @@ export function FUTPlayerCard({ player, positionLabel, compact }: Props) {
           {player.rating}
         </span>
         <span className={`font-ui text-[10px] uppercase tracking-wider ${pc.text}`}>
-          {positionLabel}
+          {getPositionAbbr(positionLabel)}
         </span>
       </div>
       {/* Name */}

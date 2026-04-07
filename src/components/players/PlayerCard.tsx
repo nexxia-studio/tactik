@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getPositionColor } from "@/lib/positionUtils";
+import { getPositionColor, getPositionAbbr } from "@/lib/positionUtils";
 
 interface PlayerCardProps {
   player: Player;
@@ -35,10 +35,6 @@ export function PlayerCard({ player, onEdit, onDelete, onView }: PlayerCardProps
         ) : (
           <User className="h-4 w-4 text-t-muted" />
         )}
-        {/* Position badge */}
-        <div className={`absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full ${pos.bg} border ${pos.border} flex items-center justify-center border-2 border-bg-surface-1`}>
-          <span className={`text-[7px] font-ui font-bold ${pos.text}`}>{pos.short}</span>
-        </div>
       </div>
 
       {/* Info */}
@@ -52,7 +48,7 @@ export function PlayerCard({ player, onEdit, onDelete, onView }: PlayerCardProps
         <div className="flex items-center gap-2 mt-0.5">
           {player.position_preferred && (
             <span className={`inline-flex px-2 py-0.5 rounded border text-[10px] font-ui font-semibold uppercase tracking-wider ${pos.bg} ${pos.text} ${pos.border}`}>
-              {player.position_preferred}
+              {getPositionAbbr(player.position_preferred ?? "")}
             </span>
           )}
           {player.nickname && (

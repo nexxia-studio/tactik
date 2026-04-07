@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { type FUTPlayer, type PlayerStatus } from "./mockPlayers";
-import { getPositionColor } from "@/lib/positionUtils";
+import { getPositionColor, getPositionAbbr } from "@/lib/positionUtils";
 import { ShieldAlert, Cross, Ban, UserPlus, UserMinus, ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -159,7 +159,7 @@ function PlayerRow({
           <div className="flex items-center gap-1.5">
             {(() => { const pc = getPositionColor(player.position); return (
               <span className={`font-ui text-[9px] px-1 py-0.5 rounded border ${pc.bg} ${pc.text} ${pc.border}`}>
-                {player.position}
+                {getPositionAbbr(player.position)}
               </span>
             ); })()}
             {slotLabel && (
